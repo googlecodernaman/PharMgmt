@@ -1,6 +1,6 @@
 # ROADMAP.md
 
-> **Current Phase**: Not started
+> **Current Phase**: Phase 1 ✅ Complete
 > **Milestone**: v1.0 — MVP
 
 ## Must-Haves (from SPEC)
@@ -17,7 +17,7 @@
 ## Phases
 
 ### Phase 1: Foundation & Data Layer
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Project scaffolding, canonical schema implementation, staging pipeline, FastAPI skeleton, and parser contract definition
 
 **Deliverables**:
