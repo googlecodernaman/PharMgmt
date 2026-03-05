@@ -1,31 +1,29 @@
 # STATE.md — Project State
 
 > **Last Updated**: 2026-03-05
-> **Current Phase**: Not started
-> **Session**: Post-review refinement
+> **Current Phase**: Phase 1 — Planning complete
+> **Session**: /plan 1
 
-## Active Context
-- Project initialized with `/new-project`
-- SPEC.md finalized with expanded canonical schema (8 tables + 3 staging tables)
-- ROADMAP.md updated with detailed Phase 1 (12 deliverables)
-- DECISIONS.md has 7 ADRs
-- Next step: `/plan 1` to plan Phase 1 execution
+## Current Position
+- **Phase**: 1 (Foundation & Data Layer)
+- **Task**: Planning complete
+- **Status**: Ready for execution
+
+## Plans Created
+- Plan 1.1: Project Scaffold & Configuration (Wave 1) — 3 tasks
+- Plan 1.2: Schema Design & SQLAlchemy Models (Wave 1) — 3 tasks
+- Plan 1.3: FastAPI Application & API Endpoints (Wave 2) — 2 tasks
+- Plan 1.4: Staging Pipeline & CLI Launcher (Wave 2) — 2 tasks
+- Plan 1.5: Tests & Developer Runbook (Wave 3) — 3 tasks
 
 ## Recent Decisions
 - Python + FastAPI + SQLite + SQLAlchemy stack
-- pdfplumber primary, camelot-py fallback, Tesseract OCR optional
-- Local web app served via FastAPI
+- pdfplumber primary, camelot-py fallback
 - Money stored as integer paisa
 - Staging pipeline: raw → extracted → staged → canonical
 - SHA-256 file hash for deduplication
-- Parser confidence threshold 0.75 for human review flag
+- Parser confidence threshold 0.75 for review flag
+- 5 plans across 3 waves for Phase 1
 
-## Blockers
-None
-
-## Working Memory
-- 8 canonical tables + 3 staging tables defined in SPEC.md
-- Parser contract JSON defined
-- 3 bill types: Sales & Stock Statement, Batch-wise Stock, Short Sales & Stock
-- Target: 10-20 bills/day, low-end Windows hardware
-- Acceptance: ≥90% field-level match on labeled gold data
+## Next Steps
+1. `/execute 1` — Run all Phase 1 plans
