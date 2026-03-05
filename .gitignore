@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Database
+*.db
+pharmgmt.db
+
+# Generated directories
+uploads/
+logs/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# GSD session files
+.gsd/STATE.md
+.gsd/JOURNAL.md
+.gsd/TODO.md
+
+# Install temp
+.gsd-install-temp/
+gsd-template/
