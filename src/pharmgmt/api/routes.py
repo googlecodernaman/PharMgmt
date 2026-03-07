@@ -2,7 +2,6 @@
 
 import os
 import logging
-import tempfile
 import time
 import uuid
 
@@ -122,25 +121,21 @@ async def upload_pdf(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    """Upload a PDF file for ingestion."""
+    """Upload a PDF file for ingestion and parsing."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
 
     settings = get_settings()
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
-    # Save uploaded file to temp location
-    start_time = time.time()
     temp_path = os.path.join(settings.UPLOAD_DIR, f"{uuid.uuid4().hex}.pdf")
     try:
         content = await file.read()
         with open(temp_path, "wb") as f:
             f.write(content)
 
-        # Ingest
+        # Ingest and parse
         result = ingest_pdf(db, temp_path, file.filename)
-
-        duration_ms = int((time.time() - start_time) * 1000)
 
         if result["status"] == "duplicate":
             raise HTTPException(status_code=409, detail=result["error"])
@@ -148,21 +143,36 @@ async def upload_pdf(
         if result["status"] == "error":
             raise HTTPException(status_code=500, detail=result["error"])
 
-        # Return stub parse result (actual parsing in Phase 2)
+        # Return real parse result
+        pr = result.get("parse_result", {})
+        meta = pr.get("meta", {})
+
+        rows = []
+        for r in pr.get("rows", []):
+            rows.append(ParseResultRow(
+                page=r.get("page", 0),
+                row_index=r.get("row_index", 0),
+                raw_text=r.get("raw_text"),
+                fields=r.get("fields", {}),
+                confidence=r.get("confidence", 0.0),
+                warnings=r.get("warnings", []),
+            ))
+
         return ParseResultResponse(
             document={
                 "document_id": result["document_id"],
                 "file_name": result["file_name"],
                 "file_hash": result["file_hash"],
+                **(pr.get("document", {})),
             },
-            rows=[],  # No row parsing yet
+            rows=rows,
             meta=ParseResultMeta(
-                parser_version="0.1.0-stub",
-                duration_ms=duration_ms,
-                rows_parsed=0,
-                rows_flagged=0,
-                avg_confidence=0.0,
-                error_flags=[],
+                parser_version=meta.get("parser_version", "0.2.0"),
+                duration_ms=meta.get("duration_ms", 0),
+                rows_parsed=meta.get("rows_parsed", 0),
+                rows_flagged=meta.get("rows_flagged", 0),
+                avg_confidence=meta.get("avg_confidence", 0.0),
+                error_flags=meta.get("error_flags", []),
             ),
         )
 
@@ -171,6 +181,3 @@ async def upload_pdf(
     except Exception as e:
         logger.error("Upload failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
-    finally:
-        # Keep the uploaded file in UPLOAD_DIR (it's also stored as blob in DB)
-        pass

@@ -75,7 +75,7 @@ class TestUploadEndpoint:
         data = response.json()
         assert "document" in data
         assert "meta" in data
-        assert data["meta"]["parser_version"] == "0.1.0-stub"
+        assert data["meta"]["parser_version"] == "0.2.0"
 
     def test_upload_duplicate_returns_409(self, test_client, sample_pdf_path):
         # First upload

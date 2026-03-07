@@ -1,4 +1,4 @@
-"""Ingestion service — PDF upload, dedup, text extraction, staging."""
+"""Ingestion service — PDF upload, dedup, text extraction, parsing, staging."""
 
 import hashlib
 import json
@@ -8,7 +8,10 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from pharmgmt.models import Document, RawFile, ExtractedText
+from pharmgmt.models import (
+    Document, RawFile, ExtractedText, StagedRow, LineItem, ParsingRun,
+)
+from pharmgmt.parsing.table_parser import parse_tables
 from pharmgmt.services.text_extraction import extract_text_from_pdf
 
 logger = logging.getLogger("pharmgmt.parsing")
@@ -27,15 +30,7 @@ def compute_file_hash(file_bytes: bytes) -> str:
 
 
 def ingest_pdf(session: Session, file_path: str, file_name: str) -> dict:
-    """Ingest a PDF file into the staging pipeline.
-
-    Steps:
-    1. Read file, compute hash
-    2. Check for duplicate
-    3. Create Document record
-    4. Store raw bytes in RawFile
-    5. Extract text using pdfplumber
-    6. Store extracted text per page
+    """Ingest a PDF file: extract text, parse tables, store results.
 
     Args:
         session: SQLAlchemy session
@@ -43,7 +38,7 @@ def ingest_pdf(session: Session, file_path: str, file_name: str) -> dict:
         file_name: Original filename
 
     Returns:
-        Dict with document_id, pages_extracted, status, or error
+        Dict with document_id, parse_result, status, or error
     """
     # 1. Read file and compute hash
     try:
@@ -99,17 +94,86 @@ def ingest_pdf(session: Session, file_path: str, file_name: str) -> dict:
     # Concatenate all page text into document raw_text
     doc.raw_text = "\n\n".join(p.get("text", "") for p in pages)
 
+    # 7. Parse tables
+    parse_result = parse_tables(pages)
+
+    # 8. Update document metadata from parse result
+    doc_meta = parse_result.get("document", {})
+    if doc_meta.get("supplier_name"):
+        doc.title = doc_meta.get("report_title")
+    if doc_meta.get("report_date_from"):
+        doc.report_from = doc_meta["report_date_from"]
+    if doc_meta.get("report_date_to"):
+        doc.report_to = doc_meta["report_date_to"]
+
+    meta = parse_result.get("meta", {})
+    doc.parser_version = meta.get("parser_version", "0.2.0")
+
+    # 9. Create StagedRows for all parsed rows
+    for row in parse_result.get("rows", []):
+        staged = StagedRow(
+            id=uuid.uuid4().hex,
+            document_id=doc_id,
+            page=row.get("page"),
+            row_index=row.get("row_index"),
+            raw_data=json.dumps({"raw_text": row.get("raw_text", "")}),
+            canonical_data=json.dumps(row.get("fields", {})),
+            status="pending",
+        )
+        session.add(staged)
+
+    # 10. Create LineItems for high-confidence documents
+    avg_confidence = meta.get("avg_confidence", 0.0)
+    if avg_confidence >= 0.75:
+        for row in parse_result.get("rows", []):
+            fields = row.get("fields", {})
+            li = LineItem(
+                id=uuid.uuid4().hex,
+                document_id=doc_id,
+                page=row.get("page"),
+                row_index=row.get("row_index"),
+                product_name_raw=fields.get("product_name_raw"),
+                packing=fields.get("packing"),
+                batch_no=fields.get("batch_no"),
+                expiry=fields.get("expiry"),
+                opening_qty=fields.get("opening_qty"),
+                receipt_qty=fields.get("receipt_qty"),
+                total_qty=fields.get("total_qty"),
+                issue_qty=fields.get("issue_qty"),
+                closing_qty=fields.get("closing_qty"),
+                price_paise=fields.get("price_paise"),
+                parser_confidence=row.get("confidence"),
+                raw_row_text=row.get("raw_text"),
+            )
+            session.add(li)
+
+    # 11. Create ParsingRun record
+    parsing_run = ParsingRun(
+        id=uuid.uuid4().hex,
+        document_id=doc_id,
+        parser_version=meta.get("parser_version", "0.2.0"),
+        duration_ms=meta.get("duration_ms"),
+        rows_parsed=meta.get("rows_parsed", 0),
+        rows_flagged=meta.get("rows_flagged", 0),
+        error_flags=json.dumps(meta.get("error_flags", [])),
+        avg_confidence=avg_confidence,
+        needs_review=1 if meta.get("needs_review", True) else 0,
+    )
+    session.add(parsing_run)
+
     session.flush()
 
     logger.info(
-        "Ingested %s → doc %s (%d pages)",
+        "Ingested %s -> doc %s (%d pages, %d rows, confidence %.2f)",
         file_name, doc_id[:8], len(pages),
+        meta.get("rows_parsed", 0), avg_confidence,
     )
 
     return {
         "status": "success",
         "document_id": doc_id,
         "file_name": file_name,
-        "pages_extracted": len(pages),
         "file_hash": file_hash,
+        "pages_extracted": len(pages),
+        "parse_result": parse_result,
     }

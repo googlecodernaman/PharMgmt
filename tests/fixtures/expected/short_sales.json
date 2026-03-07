@@ -1,0 +1,42 @@
+[
+  {
+    "product_name_raw": "Diclofenac 50mg Tab",
+    "packing": "10'S",
+    "opening_qty": 150,
+    "receipt_qty": 75,
+    "total_qty": 225,
+    "issue_qty": 100,
+    "closing_qty": 125,
+    "price_paise": 1850
+  },
+  {
+    "product_name_raw": "Ranitidine 150mg Tab",
+    "packing": "10'S",
+    "opening_qty": 90,
+    "receipt_qty": 60,
+    "total_qty": 150,
+    "issue_qty": 85,
+    "closing_qty": 65,
+    "price_paise": 2200
+  },
+  {
+    "product_name_raw": "Ciprofloxacin 500mg Tab",
+    "packing": "10'S",
+    "opening_qty": 40,
+    "receipt_qty": 20,
+    "total_qty": 60,
+    "issue_qty": 30,
+    "closing_qty": 30,
+    "price_paise": 3800
+  },
+  {
+    "product_name_raw": "Doxycycline 100mg Cap",
+    "packing": "10'S",
+    "opening_qty": 200,
+    "receipt_qty": 0,
+    "total_qty": 200,
+    "issue_qty": 75,
+    "closing_qty": 125,
+    "price_paise": 4500
+  }
+]

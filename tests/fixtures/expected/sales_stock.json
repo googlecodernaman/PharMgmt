@@ -1,0 +1,52 @@
+[
+  {
+    "product_name_raw": "Paracetamol 500mg Tab",
+    "packing": "10'S",
+    "opening_qty": 100,
+    "receipt_qty": 50,
+    "total_qty": 150,
+    "issue_qty": 80,
+    "closing_qty": 70,
+    "price_paise": 2550
+  },
+  {
+    "product_name_raw": "Amoxicillin 250mg Cap",
+    "packing": "15'S",
+    "opening_qty": 200,
+    "receipt_qty": 100,
+    "total_qty": 300,
+    "issue_qty": 150,
+    "closing_qty": 150,
+    "price_paise": 8500
+  },
+  {
+    "product_name_raw": "Omeprazole 20mg Cap",
+    "packing": "10'S",
+    "opening_qty": 50,
+    "receipt_qty": 30,
+    "total_qty": 80,
+    "issue_qty": 40,
+    "closing_qty": 40,
+    "price_paise": 4200
+  },
+  {
+    "product_name_raw": "Cetirizine 10mg Tab",
+    "packing": "10'S",
+    "opening_qty": 300,
+    "receipt_qty": 0,
+    "total_qty": 300,
+    "issue_qty": 120,
+    "closing_qty": 180,
+    "price_paise": 1500
+  },
+  {
+    "product_name_raw": "Azithromycin 500mg Tab",
+    "packing": "3'S",
+    "opening_qty": 80,
+    "receipt_qty": 40,
+    "total_qty": 120,
+    "issue_qty": 65,
+    "closing_qty": 55,
+    "price_paise": 9500
+  }
+]

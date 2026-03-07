@@ -1,0 +1,100 @@
+bill_type: sales_stock
+display_name: "Sales & Stock Statement"
+
+detect_keywords:
+  - "sales & stock"
+  - "stock statement"
+  - "sales statement"
+  - "stock & sales"
+  - "sales and stock"
+
+header_aliases:
+  product_name_raw:
+    - "product"
+    - "product name"
+    - "item"
+    - "item name"
+    - "description"
+    - "particulars"
+    - "medicine"
+    - "drug name"
+  packing:
+    - "pack"
+    - "packing"
+    - "pack size"
+    - "unit"
+  batch_no:
+    - "batch"
+    - "batch no"
+    - "batch number"
+    - "b.no"
+    - "b no"
+  expiry:
+    - "expiry"
+    - "exp"
+    - "exp date"
+    - "expiry date"
+    - "exp."
+  opening_qty:
+    - "op bal"
+    - "opening"
+    - "opening bal"
+    - "opening balance"
+    - "op. bal"
+    - "op.bal"
+    - "open"
+  receipt_qty:
+    - "pur"
+    - "purchase"
+    - "purchases"
+    - "receipt"
+    - "receipts"
+    - "rcpt"
+    - "inward"
+  total_qty:
+    - "total"
+    - "tot"
+    - "gross"
+  issue_qty:
+    - "sales"
+    - "sale"
+    - "issue"
+    - "issued"
+    - "outward"
+  closing_qty:
+    - "cl bal"
+    - "closing"
+    - "closing bal"
+    - "closing balance"
+    - "cl. bal"
+    - "cl.bal"
+    - "balance"
+    - "stock"
+  price_paise:
+    - "mrp"
+    - "rate"
+    - "price"
+    - "cp"
+    - "cost price"
+    - "amount"
+
+skip_patterns:
+  - "^\\s*total"
+  - "^\\s*sub.?total"
+  - "^\\s*grand.?total"
+  - "^\\s*$"
+  - "^\\s*page"
+  - "^\\s*---"
+
+date_columns:
+  - expiry
+
+money_columns:
+  - price_paise
+
+qty_columns:
+  - opening_qty
+  - receipt_qty
+  - total_qty
+  - issue_qty
+  - closing_qty

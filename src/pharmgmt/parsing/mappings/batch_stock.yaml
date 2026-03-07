@@ -1,0 +1,75 @@
+bill_type: batch_stock
+display_name: "Batch-wise Stock Report"
+
+detect_keywords:
+  - "batch-wise"
+  - "batch wise"
+  - "batchwise"
+  - "batch stock"
+  - "batch report"
+
+header_aliases:
+  product_name_raw:
+    - "product"
+    - "product name"
+    - "item"
+    - "item name"
+    - "description"
+    - "particulars"
+    - "medicine"
+  packing:
+    - "pack"
+    - "packing"
+    - "pack size"
+    - "unit"
+  batch_no:
+    - "batch"
+    - "batch no"
+    - "batch number"
+    - "b.no"
+    - "b no"
+  expiry:
+    - "expiry"
+    - "exp"
+    - "exp date"
+    - "expiry date"
+    - "exp."
+  closing_qty:
+    - "stock"
+    - "qty"
+    - "quantity"
+    - "balance"
+    - "cl bal"
+    - "closing"
+    - "avl"
+    - "available"
+  price_paise:
+    - "mrp"
+    - "rate"
+    - "price"
+    - "m.r.p"
+    - "m.r.p."
+  near_expiry_qty:
+    - "near expiry"
+    - "near exp"
+    - "n.exp"
+    - "short exp"
+
+skip_patterns:
+  - "^\\s*total"
+  - "^\\s*sub.?total"
+  - "^\\s*grand.?total"
+  - "^\\s*$"
+  - "^\\s*page"
+  - "^\\s*---"
+  - "^\\s*distributor"
+
+date_columns:
+  - expiry
+
+money_columns:
+  - price_paise
+
+qty_columns:
+  - closing_qty
+  - near_expiry_qty

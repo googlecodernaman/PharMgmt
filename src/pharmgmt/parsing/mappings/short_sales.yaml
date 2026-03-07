@@ -1,0 +1,76 @@
+bill_type: short_sales
+display_name: "Short Sales & Stock Statement"
+
+detect_keywords:
+  - "short sales"
+  - "short stock"
+  - "short statement"
+
+header_aliases:
+  product_name_raw:
+    - "product"
+    - "product name"
+    - "item"
+    - "item name"
+    - "description"
+    - "particulars"
+    - "medicine"
+  packing:
+    - "pack"
+    - "packing"
+    - "pack size"
+  opening_qty:
+    - "op bal"
+    - "opening"
+    - "opening bal"
+    - "op. bal"
+    - "op.bal"
+    - "open"
+  receipt_qty:
+    - "pur"
+    - "purchase"
+    - "purchases"
+    - "receipt"
+    - "rcpt"
+  total_qty:
+    - "total"
+    - "tot"
+    - "gross"
+  issue_qty:
+    - "sales"
+    - "sale"
+    - "issue"
+    - "issued"
+  closing_qty:
+    - "cl bal"
+    - "closing"
+    - "closing bal"
+    - "cl. bal"
+    - "cl.bal"
+    - "balance"
+  price_paise:
+    - "cp"
+    - "cost price"
+    - "mrp"
+    - "rate"
+    - "price"
+
+skip_patterns:
+  - "^\\s*total"
+  - "^\\s*sub.?total"
+  - "^\\s*grand.?total"
+  - "^\\s*$"
+  - "^\\s*page"
+  - "^\\s*---"
+
+date_columns: []
+
+money_columns:
+  - price_paise
+
+qty_columns:
+  - opening_qty
+  - receipt_qty
+  - total_qty
+  - issue_qty
+  - closing_qty

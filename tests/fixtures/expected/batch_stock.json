@@ -1,0 +1,42 @@
+[
+  {
+    "product_name_raw": "Metformin 500mg Tab",
+    "packing": "10'S",
+    "batch_no": "MET001",
+    "expiry": "06/2026",
+    "closing_qty": 250,
+    "price_paise": 3200
+  },
+  {
+    "product_name_raw": "Atorvastatin 10mg Tab",
+    "packing": "10'S",
+    "batch_no": "ATV002",
+    "expiry": "03/2025",
+    "closing_qty": 80,
+    "price_paise": 5500
+  },
+  {
+    "product_name_raw": "Losartan 50mg Tab",
+    "packing": "10'S",
+    "batch_no": "LOS003",
+    "expiry": "12/2025",
+    "closing_qty": 120,
+    "price_paise": 4800
+  },
+  {
+    "product_name_raw": "Pantoprazole 40mg Tab",
+    "packing": "10'S",
+    "batch_no": "PAN004",
+    "expiry": "09/2026",
+    "closing_qty": 300,
+    "price_paise": 6500
+  },
+  {
+    "product_name_raw": "Metformin 500mg Tab",
+    "packing": "10'S",
+    "batch_no": "MET005",
+    "expiry": "01/2026",
+    "closing_qty": 100,
+    "price_paise": 3200
+  }
+]
