@@ -39,7 +39,7 @@
 ---
 
 ### Phase 2: PDF Parsing Engine
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Build the PDF ingestion pipeline that extracts tables, maps columns to canonical schema, and reports parsing confidence
 
 **Deliverables**:
