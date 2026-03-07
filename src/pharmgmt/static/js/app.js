@@ -96,6 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
     Router.add('/upload', renderUpload);
     Router.add('/products', renderProducts);
     Router.add('/staging', renderStaging);
+    Router.add('/alerts', renderAlerts);
+    Router.add('/analytics', renderAnalytics);
+    Router.add('/reports', renderReports);
 
     Router.init();
 });

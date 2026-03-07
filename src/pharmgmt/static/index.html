@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PharMgmt — Pharmacy Bill Management</title>
-  <meta name="description" content="Offline-first pharmacy bill management system. Upload, parse, and track supplier bills.">
+  <meta name="description"
+    content="Offline-first pharmacy bill management system. Upload, parse, and track supplier bills.">
   <link rel="stylesheet" href="/static/css/index.css">
   <link rel="stylesheet" href="/static/css/components.css">
   <link rel="stylesheet" href="/static/css/responsive.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💊</text></svg>">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💊</text></svg>">
 </head>
+
 <body>
   <div class="app-layout">
     <!-- Sidebar -->
@@ -34,8 +38,18 @@
         <a class="nav-item" href="#/staging" id="nav-staging">
           <span class="nav-icon">🔍</span> Staging Review
         </a>
+        <a class="nav-item" href="#/alerts" id="nav-alerts">
+          <span class="nav-icon">⚠️</span> Alerts
+        </a>
+        <a class="nav-item" href="#/analytics" id="nav-analytics">
+          <span class="nav-icon">📈</span> Analytics
+        </a>
+        <a class="nav-item" href="#/reports" id="nav-reports">
+          <span class="nav-icon">📋</span> Reports
+        </a>
       </nav>
-      <div style="padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted);">
+      <div
+        style="padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted);">
         PharMgmt v0.2.0
       </div>
     </aside>
@@ -65,6 +79,10 @@
   <script src="/static/js/pages/bill-detail.js"></script>
   <script src="/static/js/pages/products.js"></script>
   <script src="/static/js/pages/staging.js"></script>
+  <script src="/static/js/pages/alerts.js"></script>
+  <script src="/static/js/pages/analytics.js"></script>
+  <script src="/static/js/pages/reports.js"></script>
   <script src="/static/js/app.js"></script>
 </body>
+
 </html>

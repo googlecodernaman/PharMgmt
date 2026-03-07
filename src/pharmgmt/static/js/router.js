@@ -41,7 +41,7 @@ const Router = {
         });
 
         // Update header title
-        const titles = { dashboard: 'Dashboard', bills: 'Bills', upload: 'Upload', products: 'Products', staging: 'Staging Review' };
+        const titles = { dashboard: 'Dashboard', bills: 'Bills', upload: 'Upload', products: 'Products', staging: 'Staging Review', alerts: 'Alerts', analytics: 'Analytics', reports: 'Reports' };
         const section = (hash.replace('#/', '') || 'dashboard').split('/')[0];
         const headerTitle = document.getElementById('header-title');
         if (headerTitle) headerTitle.textContent = titles[section] || '';
