@@ -123,6 +123,11 @@ def parse_tables(
 
                 row_index_global += 1
 
+    # ─── Fallback: text-line parser when no tables found ───
+    if row_index_global == 0:
+        logger.info("No tables found — falling back to text-line parser")
+        all_rows, row_index_global = _parse_text_lines(pages, mapping)
+
     duration_ms = int((time.time() - start_time) * 1000)
 
     # Compute aggregate metrics
@@ -305,3 +310,145 @@ def _empty_result(duration_ms: int, error_flags: list[str]) -> dict:
             "bill_type": None,
         },
     }
+
+
+def _parse_text_lines(pages: list[dict], mapping) -> tuple[list[dict], int]:
+    """Parse product data from plaintext lines when no tables are found.
+
+    Handles the common Stock & Sales format:
+      PRODUCT_NAME PACKING QTY VALUE  QTY VALUE  QTY VALUE  QTY VALUE  ...
+
+    Args:
+        pages: List of page dicts with 'text' key
+        mapping: MappingConfig (for bill_type context)
+
+    Returns:
+        Tuple of (rows list, row count)
+    """
+    all_rows = []
+    row_idx = 0
+
+    # Regex: a line that contains a product name followed by numeric values
+    # Pattern: text prefix, then groups of (qty value) or (- 0.00)
+    # A data line starts with text and then has at least 4 numeric-like tokens
+    num_token = re.compile(r'^[\d,]+\.?\d*$|^-$')
+
+    for page_data in pages:
+        text = page_data.get("text", "") or ""
+        page_num = page_data.get("page", 0)
+
+        for line in text.split("\n"):
+            line = line.strip()
+            if not line or len(line) < 10:
+                continue
+
+            # Skip separator lines (all dashes)
+            if re.match(r'^[\-=]+$', line):
+                continue
+
+            # Skip known header/footer patterns
+            lower = line.lower()
+            if any(kw in lower for kw in ['total', 'item description', 'opening', 'receipt', 'issue',
+                                           'closing', 'dump', 'phone', 'gstin', 'gst', 'tin :',
+                                           'cst no', 'e-mail', 'stock & sales', 'page ', 'printed']):
+                continue
+
+            # Split into tokens
+            tokens = line.split()
+            if len(tokens) < 5:
+                continue
+
+            # Find where numeric data starts by scanning from the end
+            # Data lines have numeric/dash tokens at the end
+            numeric_end = []
+            for t in reversed(tokens):
+                if num_token.match(t.replace(',', '')):
+                    numeric_end.insert(0, t)
+                else:
+                    break
+
+            if len(numeric_end) < 4:
+                continue  # Not enough numeric columns
+
+            # Everything before the numeric tokens is the product description
+            text_part_count = len(tokens) - len(numeric_end)
+            text_tokens = tokens[:text_part_count]
+
+            if not text_tokens:
+                continue
+
+            # Try to split text into product name and packing
+            # Packing patterns: 1*14, 1*30, 1*10, etc.
+            product_name = ""
+            packing = ""
+            packing_unit = ""
+
+            for i, t in enumerate(text_tokens):
+                if re.match(r'^\d+\*\d+', t):
+                    product_name = " ".join(text_tokens[:i]).strip()
+                    packing = t
+                    # Unit might follow (PCS, Pcs, TAB, etc.)
+                    if i + 1 < len(text_tokens):
+                        packing_unit = " ".join(text_tokens[i+1:])
+                    break
+            else:
+                # No packing pattern found — entire text is product name
+                product_name = " ".join(text_tokens).strip()
+
+            if not product_name:
+                continue
+
+            pack_str = f"{packing} {packing_unit}".strip() if packing else ""
+
+            # Map numeric values based on count
+            # Stock & Sales format: OPEN_QTY OPEN_VAL RECV_QTY RECV_VAL ISSUE_QTY ISSUE_VAL CLOSE_QTY CLOSE_VAL [DUMP_QTY MAY N_EXP]
+            vals = []
+            for v in numeric_end:
+                v_clean = v.replace(',', '')
+                if v_clean == '-':
+                    vals.append(0)
+                else:
+                    try:
+                        vals.append(float(v_clean))
+                    except ValueError:
+                        vals.append(0)
+
+            canonical = {
+                "product_name_raw": product_name,
+                "packing": pack_str,
+            }
+
+            if len(vals) >= 8:
+                canonical["opening_qty"] = int(vals[0]) if vals[0] == int(vals[0]) else vals[0]
+                canonical["opening_value"] = vals[1]
+                canonical["receipt_qty"] = int(vals[2]) if vals[2] == int(vals[2]) else vals[2]
+                canonical["receipt_value"] = vals[3]
+                canonical["issue_qty"] = int(vals[4]) if vals[4] == int(vals[4]) else vals[4]
+                canonical["issue_value"] = vals[5]
+                canonical["closing_qty"] = int(vals[6]) if vals[6] == int(vals[6]) else vals[6]
+                canonical["closing_value"] = vals[7]
+                # Derive price from closing: value / qty
+                if canonical["closing_qty"] and canonical["closing_qty"] > 0:
+                    canonical["price_paise"] = int(canonical["closing_value"] / canonical["closing_qty"] * 100)
+            elif len(vals) >= 4:
+                canonical["opening_qty"] = int(vals[0]) if vals[0] == int(vals[0]) else vals[0]
+                canonical["closing_qty"] = int(vals[1]) if vals[1] == int(vals[1]) else vals[1]
+                canonical["price_paise"] = int(vals[2] * 100) if vals[2] else None
+
+            # Apply confidence and sanity checks
+            row_confidence = score_row(canonical)
+            row_warnings = check_row(canonical)
+
+            all_rows.append({
+                "page": page_num,
+                "row_index": row_idx,
+                "raw_text": line,
+                "fields": canonical,
+                "confidence": round(row_confidence, 3),
+                "warnings": row_warnings,
+            })
+            row_idx += 1
+
+    logger.info("Text-line parser extracted %d rows", row_idx)
+    return all_rows, row_idx
+
