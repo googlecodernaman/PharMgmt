@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PharMgmt — Pharmacy Bill Management</title>
+  <meta name="description" content="Offline-first pharmacy bill management system. Upload, parse, and track supplier bills.">
+  <link rel="stylesheet" href="/static/css/index.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/responsive.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💊</text></svg>">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">💊</div>
+        <h1>PharMgmt</h1>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" href="#/dashboard" id="nav-dashboard">
+          <span class="nav-icon">📊</span> Dashboard
+        </a>
+        <a class="nav-item" href="#/bills" id="nav-bills">
+          <span class="nav-icon">📄</span> Bills
+        </a>
+        <a class="nav-item" href="#/upload" id="nav-upload">
+          <span class="nav-icon">📤</span> Upload
+        </a>
+        <a class="nav-item" href="#/products" id="nav-products">
+          <span class="nav-icon">💊</span> Products
+        </a>
+        <a class="nav-item" href="#/staging" id="nav-staging">
+          <span class="nav-icon">🔍</span> Staging Review
+        </a>
+      </nav>
+      <div style="padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted);">
+        PharMgmt v0.2.0
+      </div>
+    </aside>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <header class="top-header">
+        <button class="hamburger" id="hamburger" aria-label="Toggle menu">☰</button>
+        <span class="header-title" id="header-title">Dashboard</span>
+        <div></div>
+      </header>
+      <main class="page-container" id="page-content">
+        <div class="skeleton skeleton-card" style="height:300px"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/router.js"></script>
+  <script src="/static/js/pages/dashboard.js"></script>
+  <script src="/static/js/pages/upload.js"></script>
+  <script src="/static/js/pages/bills.js"></script>
+  <script src="/static/js/pages/bill-detail.js"></script>
+  <script src="/static/js/pages/products.js"></script>
+  <script src="/static/js/pages/staging.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

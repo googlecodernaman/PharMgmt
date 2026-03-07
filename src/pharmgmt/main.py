@@ -4,6 +4,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from pharmgmt import __version__
@@ -18,10 +19,10 @@ app = FastAPI(
     version=__version__,
 )
 
-# CORS — allow localhost origins
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:*", "http://127.0.0.1:*"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,10 +31,16 @@ app.add_middleware(
 # Include API routes
 app.include_router(router)
 
-# Static files for future frontend
+# Static files
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/")
+def root_redirect():
+    """Redirect root to dashboard."""
+    return RedirectResponse(url="/static/index.html#/dashboard")
 
 
 @app.on_event("startup")
