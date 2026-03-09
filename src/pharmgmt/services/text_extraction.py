@@ -16,11 +16,17 @@ def extract_text_from_pdf(file_path: str) -> list[dict]:
 
     Returns:
         List of dicts: [{page: int, text: str, tables: list}]
+
+    Raises:
+        ValueError: If the file is not a valid PDF or is password-protected
     """
     results = []
 
     try:
         with pdfplumber.open(file_path) as pdf:
+            if len(pdf.pages) == 0:
+                raise ValueError("PDF has 0 pages — file may be empty or corrupt")
+
             for i, page in enumerate(pdf.pages):
                 page_data = {"page": i + 1, "text": "", "tables": []}
 
@@ -40,8 +46,16 @@ def extract_text_from_pdf(file_path: str) -> list[dict]:
 
             logger.info("Extracted %d pages from %s", len(results), file_path)
 
+    except ValueError:
+        raise  # Re-raise our own errors
     except Exception as e:
-        logger.error("Failed to open PDF %s: %s", file_path, e)
-        return []
+        err_msg = str(e).lower()
+        if "password" in err_msg or "encrypted" in err_msg:
+            raise ValueError("This PDF is password-protected. Please unlock it first.") from e
+        elif "not a pdf" in err_msg or "invalid" in err_msg:
+            raise ValueError("This file is not a valid PDF.") from e
+        else:
+            raise ValueError(f"Failed to read PDF: {e}") from e
 
     return results
+

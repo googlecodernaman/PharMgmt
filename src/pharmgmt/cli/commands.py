@@ -102,6 +102,55 @@ def cmd_serve(args):
     uvicorn.run("pharmgmt.main:app", host=host, port=port, reload=False)
 
 
+def cmd_backup(args):
+    """Create a database backup."""
+    from pharmgmt.services.backup import create_backup
+    try:
+        result = create_backup()
+        print(f"Backup created: {result['name']}")
+        print(f"Path: {result['path']}")
+        print(f"Size: {result['size_bytes'] / 1024:.1f} KB")
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_backups(args):
+    """List available backups."""
+    from pharmgmt.services.backup import list_backups
+    backups = list_backups()
+    if not backups:
+        print("No backups found")
+        return
+    for b in backups:
+        print(f"  {b['name']}  ({b['size_bytes'] / 1024:.1f} KB)")
+
+
+def cmd_restore(args):
+    """Restore from a backup."""
+    from pharmgmt.services.backup import restore_backup
+    try:
+        result = restore_backup(args.name)
+        print(f"Restored from: {args.name}")
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_cleanup(args):
+    """Run retention policy — delete old raw data."""
+    from pharmgmt.config import get_settings
+    from pharmgmt.db import init_db, get_db_session
+    from pharmgmt.services.retention import cleanup_old_data
+
+    settings = get_settings()
+    init_db(settings.DATABASE_URL)
+    with get_db_session(settings.DATABASE_URL) as session:
+        result = cleanup_old_data(session, raw_days=args.raw_days, text_days=args.text_days)
+    print(f"Raw files deleted: {result['raw_files_deleted']}")
+    print(f"Extracted texts deleted: {result['extracted_texts_deleted']}")
+
+
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -125,6 +174,21 @@ def main():
     serve_parser.add_argument("--host", default=None, help="Host (default: 0.0.0.0)")
     serve_parser.add_argument("--port", type=int, default=None, help="Port (default: 8000)")
 
+    # backup
+    subparsers.add_parser("backup", help="Create a database backup")
+
+    # backups
+    subparsers.add_parser("backups", help="List available backups")
+
+    # restore
+    restore_parser = subparsers.add_parser("restore", help="Restore from a backup")
+    restore_parser.add_argument("name", help="Backup name to restore")
+
+    # cleanup
+    cleanup_parser = subparsers.add_parser("cleanup", help="Run retention policy")
+    cleanup_parser.add_argument("--raw-days", type=int, default=90, help="Days to keep raw PDFs (default: 90)")
+    cleanup_parser.add_argument("--text-days", type=int, default=180, help="Days to keep extracted text (default: 180)")
+
     args = parser.parse_args()
 
     if args.command == "version":
@@ -135,6 +199,14 @@ def main():
         cmd_ingest(args)
     elif args.command == "serve":
         cmd_serve(args)
+    elif args.command == "backup":
+        cmd_backup(args)
+    elif args.command == "backups":
+        cmd_backups(args)
+    elif args.command == "restore":
+        cmd_restore(args)
+    elif args.command == "cleanup":
+        cmd_cleanup(args)
     else:
         parser.print_help()
         sys.exit(1)
@@ -142,3 +214,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

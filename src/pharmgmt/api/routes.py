@@ -497,3 +497,24 @@ def stock_summary_csv(db: Session = Depends(get_db)):
     )
 
 
+# ─── Phase 5: Backup & Maintenance ──────────────────────────────────
+
+@router.post("/api/backup")
+def trigger_backup():
+    """Create a database backup."""
+    from pharmgmt.services.backup import create_backup
+    try:
+        result = create_backup()
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/api/backups")
+def list_backups_endpoint():
+    """List available backups."""
+    from pharmgmt.services.backup import list_backups
+    return {"items": list_backups()}
+
+
+

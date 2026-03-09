@@ -42,3 +42,5 @@ class Document(Base):
 
 # Indices
 Index("idx_documents_hash", Document.original_file_hash)
+Index("idx_documents_ingest", Document.ingest_ts)
+Index("idx_documents_file", Document.file_name)

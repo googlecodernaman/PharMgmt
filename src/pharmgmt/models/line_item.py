@@ -43,3 +43,4 @@ class LineItem(Base):
 # Indices
 Index("idx_line_items_product", LineItem.product_id)
 Index("idx_line_items_document", LineItem.document_id)
+Index("idx_line_items_product_name", LineItem.product_name_raw)
