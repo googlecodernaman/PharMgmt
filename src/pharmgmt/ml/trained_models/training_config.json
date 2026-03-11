@@ -1,0 +1,110 @@
+{
+  "samples_dir": "samples",
+  "epochs": 50,
+  "batch_size": 32,
+  "lr": 0.001,
+  "augment_factor": 3,
+  "device": "cuda",
+  "token_samples": 3766,
+  "augmented_samples": 15064,
+  "doc_samples": 101,
+  "bio_tags": [
+    "O",
+    "B-product_name_raw",
+    "I-product_name_raw",
+    "B-packing",
+    "I-packing",
+    "B-batch_no",
+    "I-batch_no",
+    "B-expiry",
+    "I-expiry",
+    "B-opening_qty",
+    "I-opening_qty",
+    "B-receipt_qty",
+    "I-receipt_qty",
+    "B-total_qty",
+    "I-total_qty",
+    "B-issue_qty",
+    "I-issue_qty",
+    "B-closing_qty",
+    "I-closing_qty",
+    "B-price_paise",
+    "I-price_paise",
+    "B-near_expiry_qty",
+    "I-near_expiry_qty"
+  ],
+  "bill_types": [
+    "batch_stock",
+    "sales_stock",
+    "short_sales",
+    "unknown"
+  ],
+  "eval_metrics": {
+    "product_name_raw": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "packing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "batch_no": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "expiry": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "opening_qty": {
+      "precision": 0.997,
+      "recall": 0.998,
+      "f1": 0.997
+    },
+    "receipt_qty": {
+      "precision": 0.996,
+      "recall": 0.995,
+      "f1": 0.995
+    },
+    "total_qty": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "issue_qty": {
+      "precision": 0.996,
+      "recall": 0.996,
+      "f1": 0.996
+    },
+    "closing_qty": {
+      "precision": 0.998,
+      "recall": 0.998,
+      "f1": 0.998
+    },
+    "price_paise": {
+      "precision": 0.999,
+      "recall": 0.997,
+      "f1": 0.998
+    },
+    "near_expiry_qty": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "_overall": {
+      "accuracy": 0.999,
+      "total_tokens": 37072
+    }
+  },
+  "stats": {
+    "total_pdfs": 101,
+    "successful": 101,
+    "failed": 0,
+    "total_rows": 3766,
+    "total_tokens": 48484
+  }
+}
