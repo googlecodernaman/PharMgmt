@@ -1,4 +1,9 @@
-"""Core table parser — extract, map, and score canonical rows from PDF pages."""
+"""Core table parser — extract, map, and score canonical rows from PDF pages.
+
+Hybrid approach: uses ML models when available for bill-type classification,
+token-level field extraction, and low-confidence row re-extraction.
+Falls back to rule-based parsing when models are not present.
+"""
 
 import logging
 import re
@@ -10,6 +15,29 @@ from pharmgmt.parsing.mapping_config import MappingConfig, detect_bill_type, loa
 from pharmgmt.parsing.sanity_checks import check_row, check_document
 
 logger = logging.getLogger("pharmgmt.parsing")
+
+# ML predictor (lazy-loaded, graceful fallback)
+_ml_predictor = None
+
+
+def _get_ml_predictor():
+    """Get ML predictor singleton, or None if unavailable."""
+    global _ml_predictor
+    if _ml_predictor is not None:
+        return _ml_predictor if _ml_predictor.available else None
+    try:
+        from pharmgmt.ml.predict import get_predictor
+        _ml_predictor = get_predictor()
+        if _ml_predictor.available:
+            _ml_predictor.load()
+            logger.info("ML predictor loaded for hybrid parsing")
+            return _ml_predictor
+        else:
+            logger.info("ML models not found — using rule-based parsing only")
+            return None
+    except Exception as e:
+        logger.debug("ML predictor unavailable: %s", e)
+        return None
 
 
 def parse_tables(
@@ -46,6 +74,10 @@ def parse_tables(
                 break
 
         mapping = detect_bill_type(full_text, first_headers)
+
+        # ML-assisted bill type detection when keyword matching fails or is uncertain
+        if mapping is None:
+            mapping = _ml_detect_bill_type(full_text)
 
     if mapping is None:
         logger.warning("No bill type detected — using first available mapping as fallback")
@@ -126,7 +158,15 @@ def parse_tables(
     # ─── Fallback: text-line parser when no tables found ───
     if row_index_global == 0:
         logger.info("No tables found — falling back to text-line parser")
-        all_rows, row_index_global = _parse_text_lines(pages, mapping)
+        # Try ML extraction first, then fall back to rule-based
+        predictor = _get_ml_predictor()
+        if predictor is not None:
+            all_rows, row_index_global = _parse_text_lines_ml(pages, predictor)
+        if row_index_global == 0:
+            all_rows, row_index_global = _parse_text_lines(pages, mapping)
+
+    # ─── ML re-extraction for low-confidence rows ───
+    all_rows = _ml_reextract_low_confidence(all_rows)
 
     duration_ms = int((time.time() - start_time) * 1000)
 
@@ -137,11 +177,15 @@ def parse_tables(
     doc_warnings = check_document(all_rows)
     review_needed = needs_review(avg_conf)
 
+    # Count ML-parsed and re-extracted rows
+    ml_parsed = sum(1 for r in all_rows if r.get("parse_method") == "ml")
+    ml_reextracted = sum(1 for r in all_rows if r.get("parse_method") == "ml_reextract")
+
     return {
         "document": doc_metadata,
         "rows": all_rows,
         "meta": {
-            "parser_version": "0.2.0",
+            "parser_version": "0.3.0",
             "duration_ms": duration_ms,
             "rows_parsed": rows_parsed,
             "rows_flagged": rows_flagged,
@@ -149,6 +193,9 @@ def parse_tables(
             "error_flags": doc_warnings,
             "needs_review": review_needed,
             "bill_type": mapping.bill_type if mapping else None,
+            "ml_assisted": ml_parsed + ml_reextracted > 0,
+            "ml_parsed_rows": ml_parsed,
+            "ml_reextracted_rows": ml_reextracted,
         },
     }
 
@@ -451,4 +498,159 @@ def _parse_text_lines(pages: list[dict], mapping) -> tuple[list[dict], int]:
 
     logger.info("Text-line parser extracted %d rows", row_idx)
     return all_rows, row_idx
+
+
+# ─── ML-assisted helpers ───────────────────────────────────────────────
+
+
+def _ml_detect_bill_type(full_text: str) -> MappingConfig | None:
+    """Use ML classifier to detect bill type, then return matching MappingConfig."""
+    predictor = _get_ml_predictor()
+    if predictor is None:
+        return None
+
+    bill_type, confidence = predictor.classify_bill_type(full_text[:2000])
+    if confidence < 0.5 or bill_type == "unknown":
+        logger.debug("ML bill-type confidence too low (%.2f) — skipping", confidence)
+        return None
+
+    # Find the MappingConfig that matches the ML-detected bill type
+    all_mappings = load_all_mappings()
+    for m in all_mappings:
+        if m.bill_type == bill_type:
+            logger.info(
+                "ML detected bill type: %s (confidence: %.2f)", bill_type, confidence
+            )
+            return m
+
+    logger.debug("ML detected bill type '%s' has no mapping config", bill_type)
+    return None
+
+
+def _parse_text_lines_ml(pages: list[dict], predictor) -> tuple[list[dict], int]:
+    """Parse text lines using ML field extraction instead of regex heuristics.
+
+    Each non-empty line is run through the BiLSTM-CRF field extractor which
+    assigns BIO tags to every token, then groups them into canonical fields.
+
+    Args:
+        pages: List of page dicts with 'text' key
+        predictor: Loaded MLPredictor instance
+
+    Returns:
+        Tuple of (rows list, row count)
+    """
+    all_rows = []
+    row_idx = 0
+
+    for page_data in pages:
+        text = page_data.get("text", "") or ""
+        page_num = page_data.get("page", 0)
+
+        for line in text.split("\n"):
+            line = line.strip()
+            if not line or len(line) < 10:
+                continue
+
+            # Skip separator and header/footer lines
+            if re.match(r'^[\-=]+$', line):
+                continue
+            lower = line.lower()
+            if any(kw in lower for kw in [
+                'total', 'item description', 'page ', 'printed',
+                'phone', 'gstin', 'e-mail', 'stock & sales',
+            ]):
+                continue
+
+            tokens = line.split()
+            if len(tokens) < 3:
+                continue
+
+            result = predictor.extract_fields(line)
+            fields = result.get("fields", {})
+            ml_confidence = result.get("confidence", 0.0)
+
+            # Must have product_name_raw AND at least one numeric field to be a data row
+            # (filters out header/metadata lines that only match product_name)
+            if not fields.get("product_name_raw"):
+                continue
+            numeric_fields = [
+                "opening_qty", "receipt_qty", "total_qty", "issue_qty",
+                "closing_qty", "price_paise", "near_expiry_qty",
+            ]
+            has_numeric = any(fields.get(f) is not None for f in numeric_fields)
+            if not has_numeric:
+                continue
+
+            # Apply sanity checks and row scoring
+            row_confidence = max(score_row(fields), ml_confidence)
+            row_warnings = check_row(fields)
+
+            all_rows.append({
+                "page": page_num,
+                "row_index": row_idx,
+                "raw_text": line,
+                "fields": fields,
+                "confidence": round(row_confidence, 3),
+                "warnings": row_warnings,
+                "parse_method": "ml",
+            })
+            row_idx += 1
+
+    logger.info("ML text-line parser extracted %d rows", row_idx)
+    return all_rows, row_idx
+
+
+def _ml_reextract_low_confidence(rows: list[dict]) -> list[dict]:
+    """Re-extract fields for low-confidence rows using ML model.
+
+    Rows with confidence < 0.5 get a second pass through the ML extractor.
+    The ML result replaces the original only if it produces higher confidence.
+
+    Args:
+        rows: List of parsed row dicts
+
+    Returns:
+        Updated rows list (modified in-place for efficiency)
+    """
+    predictor = _get_ml_predictor()
+    if predictor is None:
+        return rows
+
+    reextracted = 0
+    for row in rows:
+        if row.get("confidence", 1.0) >= 0.5:
+            continue
+        if row.get("parse_method") == "ml":
+            continue  # Already ML-parsed, don't re-run
+
+        raw_text = row.get("raw_text", "")
+        if not raw_text or len(raw_text) < 10:
+            continue
+
+        ml_result = predictor.extract_fields(raw_text)
+        ml_fields = ml_result.get("fields", {})
+        ml_confidence = ml_result.get("confidence", 0.0)
+
+        if not ml_fields.get("product_name_raw"):
+            continue
+
+        # Merge: prefer ML value when original is missing or ML confidence is better
+        original_fields = row.get("fields", {})
+        merged = dict(original_fields)
+        for key, val in ml_fields.items():
+            if val is not None and (merged.get(key) is None or row["confidence"] < 0.3):
+                merged[key] = val
+
+        new_confidence = max(score_row(merged), ml_confidence)
+        if new_confidence > row["confidence"]:
+            row["fields"] = merged
+            row["confidence"] = round(new_confidence, 3)
+            row["warnings"] = check_row(merged)
+            row["parse_method"] = "ml_reextract"
+            reextracted += 1
+
+    if reextracted:
+        logger.info("ML re-extracted %d low-confidence rows", reextracted)
+    return rows
 
