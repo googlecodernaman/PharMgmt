@@ -42,3 +42,6 @@ Desktop.ini
 # Install temp
 .gsd-install-temp/
 gsd-template/
+
+# ML training artifacts (regenerable)
+src/pharmgmt/ml/trained_models/training_data.json

@@ -1,0 +1,139 @@
+%PDF-1.2 
+%сссс
+1 0 obj
+<<
+/Creator  ( PSOPDF)
+/Producer (VB to PDF)
+/Title (VBTOPDF)
+>>
+endobj
+4 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/Name /F1
+/Encoding 5 0 R
+/BaseFont /Courier
+>>
+endobj
+5 0 obj
+<<
+/Type /Encoding
+/BaseEncoding /WinAnsiEncoding
+>>
+endobj
+6 0 obj
+<<
+/Font << /F1 4 0 R   >> /ProcSet [ /PDF  /Text ]
+>>
+endobj
+7 0 obj
+<<
+/Type /Page
+/Parent 3 0 R
+/Resources 6 0 R
+/Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+/Length 9 0 R
+>>
+stream
+BT
+/F1 9 Tf
+1 0 0 1 50 775 Tm
+12 TL
+T* (                                                                                                                                                             ) Tj
+T* (                                  KENT PHARMA                                                                                                      ) Tj
+T* (                                                                                                                                                             ) Tj
+T* (                                CHENNAI. - 600003                                                                                                  ) Tj
+T* (                                                                                                                                                             ) Tj
+T* (Stock & Sales Report From 01/06/2021 To 30/06/2021                                                                                                ) Tj
+T* (Company Name : ASTRAZENECA CARDIAC - ALAPPAKKAM MAIN ROAD,                                                                                                   ) Tj
+T* (=============================================================================================================================================================) Tj
+T* (No   Product Name              Pack    Opstk       Pur PFree  PurRet      Sale     SFree OthFr SRet      DC CurStk    StkVal Exp Last PDate   TotRcpts   Mfr ) Tj
+T* (=============================================================================================================================================================) Tj
+T* (1   BETALOC 100 MG TAB        10`S       26         -     -       -         -         -     -    -       -     26   1571.18   *          -          0 ASTRA ) Tj
+T* (2   BETALOC 25MG TAB          30`S       93         -     -       -        25         -     -    -       -     68   4617.20   -          -          0 ASTRA ) Tj
+T* (3   BETALOC 50MG TAB          30`S      343         -     -       -         5         -     -    -       -    338  34844.42   - 28/05/2021          0 ASTRA ) Tj
+T* (4   BRILINTA 60MG TAB         14`s       35        60     -       -        68         -     -    -       -     27   6804.00   - 18/06/2021         60 ASTRA ) Tj
+T* (5   BRILINTA 90MG             180`S       8         -     -       -         1         -     -    -       -      7  22410.01   - 28/04/2021          0 ASTRA ) Tj
+T* (6   BRILINTA TAB 90MG         14`S      109        50     -       -        57         -     -    -       -    102  27540.00   - 23/06/2021         50 ASTRA ) Tj
+T* (7   CRESTOR 10MG TAB          30`S       23        20     -       -        22         -     -    -       -     21   7998.90   - 28/06/2021         20 ASTRA ) Tj
+T* (8   CRESTOR 20 MG TAB         10`S       20         -     -       -        19         -     -    -       -      7   1545.43   *          -          6 ASTRA ) Tj
+T* (9   CRESTOR 40 MG TAB         10`S       23         -     -       -         -         -     -    -       -     23   8708.72   - 28/05/2021          0 ASTRA ) Tj
+T* (10  CRESTOR 5MG               30         12         -     -       -         2         -     -    -       -     10   2237.10   - 15/04/2021          0 ASTRA ) Tj
+T* (11  IMDUR 30 MG TAB           30`S       66         -     -       -        32         -     -    -       -     34   3673.70   - 13/05/2021          0 ASTRA ) Tj
+T* (12  IMDUR 60MG                30         18        12     -       -        15         -     -    -       -     15   2108.25   - 18/06/2021         12 ASTRA ) Tj
+T* (13  KOMBIGLYZE XR TAB 5MG/500 7`S        12         8     -       -        12         -     -    -       -      8   1854.00   - 18/06/2021          8 ASTRA ) Tj
+T* (14  KOMBIGLYZE XR TAB5MG/1000 7`S        27         -     -       -         -         -     -    -       -     27   6759.00   *          -          0 ASTRA ) Tj
+T* (15  ONGLYZA TAB 2.5MG         14 TAB     12         -     -       -         -         -     -    -       -     12   4212.00   - 13/05/2021          0 ASTRA ) Tj
+T* (16  ONGLYZA TAB 5MG           14          0        16     -       -         4         -     -    -       -     12   4667.16   - 28/06/2021         16 ASTRA ) Tj
+T* (17  ONGLYZA TAB 5MG           14TAB      10         -     -       -        10         -     -    -       -      0         -   -          -          0 ASTRA ) Tj
+T* (18  SELOKEN XL 100 MG         15`S        3         -     -       -         -         -     -    -       -      3    522.01   *          -          0 ASTRA ) Tj
+T* (19  SELOKEN XL 25 MG 30`S     30`S       76        50     -       -        53         -     -    -       -     73   6276.60   - 28/06/2021         50 ASTRA ) Tj
+T* (20  SELOKEN XL 50MG 30`S      30        108         -     -       -        44         -     -    -       -     64   8165.40   - 28/05/2021          0 ASTRA ) Tj
+T* (-------------------------------------------------------------------------------------------------------------------------------------------------------------) Tj
+T* (    Total                              1024       216     -       -       369         -     -    -       -    877         -   -          -          -     - ) Tj
+T* (-------------------------------------------------------------------------------------------------------------------------------------------------------------) Tj
+T* (Opg.Stk Val:   180144.66 Purc.Value: :    50306.98 Sales Value::    80295.77                                                                                 ) Tj
+T* (Cl.Stk Val:    156515.08 Pur.RetVal ::        0.00 SalRet Val: :        0.00                                                                                 ) Tj
+T* (                                     :             NetSal\(GVal\):    80295.77                                                                               ) Tj
+T* (Oth.SalVal:         0.00 Tran.Stk.IN::        0.00 Tran.Stk.Out:        0.00                                                                                 ) Tj
+T* (                                                                                                                                                             ) Tj
+T* (                                                                                                                                                             ) Tj
+T* (                                                                                                                                                             ) Tj
+T* (                                                                                                                                                             ) Tj
+T* (Non Moving items Report Non Move Days > 90                                                                                                                   ) Tj
+T* (========================================================================================                                                                     ) Tj
+T* (Prod.Name                 Packing    Batch      Qty       Days                                                                                               ) Tj
+T* (========================================================================================                                                                     ) Tj
+T* (Company Name : ASTRAZENECA CARDIAC                                                                                                                           ) Tj
+T* (BETALOC 100 MG TAB        10`S       BJV002     26        269                                                                                                ) Tj
+T* (----------------------------------------------------------------------------------------                                                                     ) Tj
+T* (                                                                                                                                                             ) Tj
+T* (                                       *** END OF REPORT ***                                                                                                 ) Tj
+T* (                                                                                                                                                             ) Tj
+ET
+endstream
+endobj
+9 0 obj
+4635
+endobj
+2 0 obj
+<<
+/Type /Catalog
+/Pages 3 0 R
+/PageLayout /OneColumn
+>>
+endobj
+3 0 obj
+<<
+/Type /Pages
+/Count 1
+/MediaBox [ 0 0 940 854 ]
+/Kids [ 7 0 R ]
+>>
+endobj
+xref
+010
+0000000000 65535 f
+0000000017 00000 n
+0000005201 00000 n
+0000005280 00000 n
+0000000144 00000 n
+0000000247 00000 n
+0000000321 00000 n
+0000000396 00000 n
+0000000484 00000 n
+0000005178 00000 n
+trailer
+<<
+/Size 10
+/Root 2 0 R
+/Info 1 0 R
+>>
+startxref
+5373
+%%EOF
