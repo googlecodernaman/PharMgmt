@@ -51,6 +51,8 @@ class ParseResultMeta(BaseModel):
     rows_flagged: int
     avg_confidence: float
     error_flags: list[str] = []
+    bill_type: str | None = None
+    ml_assisted: bool = False
 
 
 class ParseResultResponse(BaseModel):

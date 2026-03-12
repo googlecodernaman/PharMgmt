@@ -169,12 +169,14 @@ async def upload_pdf(
             },
             rows=rows,
             meta=ParseResultMeta(
-                parser_version=meta.get("parser_version", "0.2.0"),
+                parser_version=meta.get("parser_version", "0.3.0"),
                 duration_ms=meta.get("duration_ms", 0),
                 rows_parsed=meta.get("rows_parsed", 0),
                 rows_flagged=meta.get("rows_flagged", 0),
                 avg_confidence=meta.get("avg_confidence", 0.0),
                 error_flags=meta.get("error_flags", []),
+                bill_type=meta.get("bill_type"),
+                ml_assisted=meta.get("ml_assisted", False),
             ),
         )
 

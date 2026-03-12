@@ -107,7 +107,7 @@ def ingest_pdf(session: Session, file_path: str, file_name: str) -> dict:
         doc.report_to = doc_meta["report_date_to"]
 
     meta = parse_result.get("meta", {})
-    doc.parser_version = meta.get("parser_version", "0.2.0")
+    doc.parser_version = meta.get("parser_version", "0.3.0")
 
     # 9. Create StagedRows for all parsed rows
     for row in parse_result.get("rows", []):
@@ -151,7 +151,7 @@ def ingest_pdf(session: Session, file_path: str, file_name: str) -> dict:
     parsing_run = ParsingRun(
         id=uuid.uuid4().hex,
         document_id=doc_id,
-        parser_version=meta.get("parser_version", "0.2.0"),
+        parser_version=meta.get("parser_version", "0.3.0"),
         duration_ms=meta.get("duration_ms"),
         rows_parsed=meta.get("rows_parsed", 0),
         rows_flagged=meta.get("rows_flagged", 0),

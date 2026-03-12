@@ -347,7 +347,7 @@ def _empty_result(duration_ms: int, error_flags: list[str]) -> dict:
         "document": {},
         "rows": [],
         "meta": {
-            "parser_version": "0.2.0",
+            "parser_version": "0.3.0",
             "duration_ms": duration_ms,
             "rows_parsed": 0,
             "rows_flagged": 0,
