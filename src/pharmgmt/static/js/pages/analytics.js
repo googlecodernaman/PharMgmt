@@ -53,6 +53,7 @@ async function renderAnalytics(container) {
         searchInput.addEventListener('input', () => {
             clearTimeout(timer);
             timer = setTimeout(async () => {
+                if (!searchInput.isConnected) return; // navigated away
                 const q = searchInput.value.trim();
                 if (!q) { document.getElementById('price-history-result').innerHTML = ''; return; }
                 try {

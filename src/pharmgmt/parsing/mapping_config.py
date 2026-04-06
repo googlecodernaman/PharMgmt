@@ -12,6 +12,9 @@ logger = logging.getLogger("pharmgmt.parsing")
 
 MAPPINGS_DIR = Path(__file__).parent / "mappings"
 
+# Module-level cache so YAML files are read from disk only once per process
+_mappings_cache: list["MappingConfig"] | None = None
+
 
 @dataclass
 class MappingConfig:
@@ -54,12 +57,22 @@ def load_mapping(yaml_path: str | Path) -> MappingConfig:
 def load_all_mappings(mappings_dir: str | Path | None = None) -> list[MappingConfig]:
     """Load all mapping configs from the mappings directory.
 
+    Results are cached in memory after the first call so YAML files are
+    only read from disk once per process lifetime.
+
     Args:
-        mappings_dir: Directory containing YAML mapping files (default: built-in)
+        mappings_dir: Directory containing YAML mapping files (default: built-in).
+                      Pass a value to bypass caching (e.g., for tests).
 
     Returns:
         List of MappingConfig instances
     """
+    global _mappings_cache
+
+    # Return cache if using the default directory and already loaded
+    if mappings_dir is None and _mappings_cache is not None:
+        return _mappings_cache
+
     if mappings_dir is None:
         mappings_dir = MAPPINGS_DIR
 
@@ -75,6 +88,11 @@ def load_all_mappings(mappings_dir: str | Path | None = None) -> list[MappingCon
             logger.warning("Failed to load mapping %s: %s", yaml_file.name, e)
 
     logger.info("Loaded %d mapping configs", len(configs))
+
+    # Populate cache only when using default directory
+    if str(mappings_dir) == str(MAPPINGS_DIR):
+        _mappings_cache = configs
+
     return configs
 
 
@@ -111,7 +129,10 @@ def detect_bill_type(
     for config in configs:
         score = 0
         for keyword in config.detect_keywords:
-            if keyword.lower() in combined:
+            # Use word-boundary matching to avoid false positives:
+            # "stock" should not match "livestock" or "overstock"
+            pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
+            if re.search(pattern, combined):
                 score += 1
 
         if score > best_score:

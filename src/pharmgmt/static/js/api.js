@@ -2,12 +2,16 @@
 
 const API = {
     baseUrl: '',
+    _navAbort: null,  // Set by Router on each navigation to cancel stale requests
 
     async request(path, options = {}) {
+        const { headers = {}, signal: callerSignal, ...rest } = options;
+        const signal = callerSignal ?? this._navAbort?.signal;
         try {
             const res = await fetch(`${this.baseUrl}${path}`, {
-                headers: { 'Content-Type': 'application/json', ...options.headers },
-                ...options,
+                signal,
+                headers: { 'Content-Type': 'application/json', ...headers },
+                ...rest,
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -15,6 +19,7 @@ const API = {
             }
             return await res.json();
         } catch (e) {
+            if (e.name === 'AbortError') return new Promise(() => {}); // silently cancel
             console.error(`API ${path}:`, e);
             throw e;
         }

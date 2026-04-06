@@ -7,7 +7,7 @@ from .models import Base, SchemaMeta, engine_factory, session_factory
 
 logger = logging.getLogger("pharmgmt.db")
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 def init_db(db_url: str) -> None:
@@ -78,10 +78,25 @@ def check_schema_version(db_url: str) -> int:
         return 0
 
 
-def migrate_db(db_url: str, target_version: int | None = None) -> None:
-    """Run database migrations.
+def _migrate_v1_to_v2(db_url: str) -> None:
+    """Add bill_type column to parsing_runs table (schema v2)."""
+    from sqlalchemy import create_engine, text
+    engine = create_engine(db_url)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE parsing_runs ADD COLUMN bill_type VARCHAR"))
+            conn.commit()
+            logger.info("Migration v1->v2: added bill_type to parsing_runs")
+        except Exception as e:
+            if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
+                logger.info("Migration v1->v2: bill_type column already present, skipping")
+            else:
+                raise
+    engine.dispose()
 
-    Currently a placeholder — applies schema changes incrementally.
+
+def migrate_db(db_url: str, target_version: int | None = None) -> None:
+    """Run database migrations incrementally.
 
     Args:
         db_url: SQLAlchemy database URL
@@ -98,8 +113,8 @@ def migrate_db(db_url: str, target_version: int | None = None) -> None:
 
     logger.info("Migrating from version %d to %d", current, target_version)
 
-    # Future migrations go here as version-specific functions
-    # e.g., if current < 2: _migrate_v1_to_v2(db_url)
+    if current < 2:
+        _migrate_v1_to_v2(db_url)
 
     # Update version
     with get_db_session(db_url) as session:

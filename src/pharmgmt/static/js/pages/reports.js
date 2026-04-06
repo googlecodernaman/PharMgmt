@@ -42,7 +42,7 @@ async function renderReports(container) {
         </div>
         <div class="table-container" style="max-height:300px;overflow-y:auto"><table class="data-table"><thead><tr>
           <th>File</th><th>Product</th><th>Pack</th><th>Qty</th><th>Price</th><th>Value</th>
-        </tr></thead><tbody>${pr.items.slice(0, 50).map(i => `<tr>
+        </tr></thead><tbody>${pr.items.map(i => `<tr>
           <td>${i.file_name || '—'}</td><td>${i.product || '—'}</td><td>${i.packing || '—'}</td>
           <td>${i.quantity || 0}</td><td>${formatMoney(i.price_paise)}</td><td>${formatMoney(i.value_paise)}</td>
         </tr>`).join('')}</tbody></table></div>`;

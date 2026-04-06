@@ -134,7 +134,7 @@ def parse_tables(
                     continue
 
                 # Resolve to canonical
-                canonical, row_confidence = resolve_row(str_row, column_map, mapping)
+                canonical, _ = resolve_row(str_row, column_map, mapping)
                 canonical["page"] = page_num
                 canonical["row_index"] = row_index_global
 
@@ -347,7 +347,7 @@ def _empty_result(duration_ms: int, error_flags: list[str]) -> dict:
         "document": {},
         "rows": [],
         "meta": {
-            "parser_version": "0.2.0",
+            "parser_version": "0.3.0",
             "duration_ms": duration_ms,
             "rows_parsed": 0,
             "rows_flagged": 0,
@@ -359,15 +359,98 @@ def _empty_result(duration_ms: int, error_flags: list[str]) -> dict:
     }
 
 
+def _find_text_header(lines: list[str], mapping) -> tuple[int, dict[int, str], list[tuple[int, int]]] | None:
+    """Find a header line in raw text and compute column boundaries.
+
+    Scans leading lines for one that matches YAML alias keywords. Uses
+    character positions to define column boundaries for data extraction.
+
+    Args:
+        lines: All raw text lines for one page
+        mapping: MappingConfig with header_aliases
+
+    Returns:
+        Tuple of (header_line_index, column_map {col_idx: field_name},
+        boundaries [(char_start, char_end), ...]) or None if no header found
+    """
+    # Only check first 30 lines as potential headers
+    for line_idx in range(min(30, len(lines))):
+        raw_line = lines[line_idx]
+        stripped = raw_line.strip()
+        if not stripped or len(stripped) < 8:
+            continue
+        # Skip separator lines
+        if re.match(r'^[\-=_]+$', stripped):
+            continue
+
+        # Split by 2+ whitespace to keep multi-word headers intact
+        # e.g. "Product Name   Pack   Batch No   Expiry   Op Bal  ..."
+        header_tokens = re.split(r'\s{2,}', stripped)
+        if len(header_tokens) < 3:
+            continue
+
+        # Test against match_headers
+        col_map, confidence = match_headers(header_tokens, mapping)
+        if confidence < 0.25 or len(col_map) < 2:
+            continue
+
+        # Compute character boundaries for each header token
+        boundaries = []
+        for token in header_tokens:
+            start = raw_line.find(token, boundaries[-1][1] if boundaries else 0)
+            if start == -1:
+                start = raw_line.lower().find(token.lower(), boundaries[-1][1] if boundaries else 0)
+            if start == -1:
+                # Fallback: approximate position
+                start = boundaries[-1][1] if boundaries else 0
+            boundaries.append((start, start + len(token)))
+
+        # Extend each boundary: from its start to just before the next column's start
+        extended = []
+        for i in range(len(boundaries)):
+            col_start = boundaries[i][0]
+            if i + 1 < len(boundaries):
+                col_end = boundaries[i + 1][0]
+            else:
+                col_end = max(len(raw_line), 200)  # last column extends to line end
+            extended.append((col_start, col_end))
+
+        logger.info(
+            "Found text header at line %d: %d columns matched (confidence %.2f)",
+            line_idx, len(col_map), confidence,
+        )
+        return line_idx, col_map, extended
+
+    return None
+
+
+def _extract_cell_by_boundary(line: str, start: int, end: int) -> str:
+    """Extract a cell value from a text line using character boundaries.
+
+    Args:
+        line: Raw text line
+        start: Column start character position
+        end: Column end character position
+
+    Returns:
+        Stripped cell value
+    """
+    if start >= len(line):
+        return ""
+    return line[start:min(end, len(line))].strip()
+
+
 def _parse_text_lines(pages: list[dict], mapping) -> tuple[list[dict], int]:
     """Parse product data from plaintext lines when no tables are found.
 
-    Handles the common Stock & Sales format:
-      PRODUCT_NAME PACKING QTY VALUE  QTY VALUE  QTY VALUE  QTY VALUE  ...
+    Uses a header-aware strategy: finds the header line in the text,
+    determines column boundaries by character position, then extracts
+    cell values for each data line using those boundaries. Falls back
+    to a positional numeric heuristic if no header is found.
 
     Args:
         pages: List of page dicts with 'text' key
-        mapping: MappingConfig (for bill_type context)
+        mapping: MappingConfig with header_aliases and column types
 
     Returns:
         Tuple of (rows list, row count)
@@ -375,57 +458,113 @@ def _parse_text_lines(pages: list[dict], mapping) -> tuple[list[dict], int]:
     all_rows = []
     row_idx = 0
 
-    # Regex: a line that contains a product name followed by numeric values
-    # Pattern: text prefix, then groups of (qty value) or (- 0.00)
-    # A data line starts with text and then has at least 4 numeric-like tokens
-    num_token = re.compile(r'^[\d,]+\.?\d*$|^-$')
+    # Noise keywords that indicate header/footer/summary lines (NOT data rows)
+    _noise_kw = [
+        'total', 'sub total', 'subtotal', 'grand total',
+        'phone', 'gstin', 'gst no', 'tin :', 'cst no',
+        'e-mail', 'email', 'printed', 'page ',
+        'stock & sales', 'stock statement',
+    ]
+    num_token_re = re.compile(r'^[\d,]+\.?\d*$|^-$')
 
     for page_data in pages:
         text = page_data.get("text", "") or ""
         page_num = page_data.get("page", 0)
+        lines = text.split("\n")
 
-        for line in text.split("\n"):
+        # ── Strategy A: Header-aware column-boundary parsing ──
+        header_result = _find_text_header(lines, mapping)
+
+        if header_result is not None:
+            header_idx, col_map, boundaries = header_result
+
+            for line_idx in range(header_idx + 1, len(lines)):
+                line = lines[line_idx]
+                stripped = line.strip()
+                if not stripped or len(stripped) < 5:
+                    continue
+                # Skip separators
+                if re.match(r'^[\-=_]+$', stripped):
+                    continue
+                # Skip noise lines
+                lower = stripped.lower()
+                if any(kw in lower for kw in _noise_kw):
+                    continue
+                # Skip if matches a skip pattern from the mapping
+                if mapping.skip_patterns and _is_skip_row([stripped], mapping.skip_patterns):
+                    continue
+
+                # Extract cells using column boundaries
+                cells = []
+                for start, end in boundaries:
+                    cells.append(_extract_cell_by_boundary(line, start, end))
+
+                # Skip rows where all cells are empty
+                if not any(c for c in cells):
+                    continue
+
+                # Resolve using column_resolver (same as structured table path)
+                canonical, _ = resolve_row(cells, col_map, mapping)
+                canonical["page"] = page_num
+                canonical["row_index"] = row_idx
+
+                # Skip if no product name (likely a continuation or junk line)
+                if not canonical.get("product_name_raw"):
+                    continue
+
+                # Check if this is a repeated header (same text as header line)
+                header_tokens_set = set(re.split(r'\s{2,}', lines[header_idx].strip().lower()))
+                data_tokens_set = set(re.split(r'\s{2,}', stripped.lower()))
+                if len(header_tokens_set & data_tokens_set) > len(header_tokens_set) * 0.6:
+                    continue
+
+                row_confidence = score_row(canonical)
+                row_warnings = check_row(canonical)
+
+                all_rows.append({
+                    "page": page_num,
+                    "row_index": row_idx,
+                    "raw_text": stripped,
+                    "fields": canonical,
+                    "confidence": round(row_confidence, 3),
+                    "warnings": row_warnings,
+                })
+                row_idx += 1
+
+            continue  # Done with this page via header-aware path
+
+        # ── Strategy B: Positional fallback (no header found) ──
+        for line in lines:
             line = line.strip()
             if not line or len(line) < 10:
                 continue
-
-            # Skip separator lines (all dashes)
             if re.match(r'^[\-=]+$', line):
                 continue
-
-            # Skip known header/footer patterns
             lower = line.lower()
-            if any(kw in lower for kw in ['total', 'item description', 'opening', 'receipt', 'issue',
-                                           'closing', 'dump', 'phone', 'gstin', 'gst', 'tin :',
-                                           'cst no', 'e-mail', 'stock & sales', 'page ', 'printed']):
+            if any(kw in lower for kw in _noise_kw):
                 continue
 
-            # Split into tokens
             tokens = line.split()
             if len(tokens) < 5:
                 continue
 
-            # Find where numeric data starts by scanning from the end
-            # Data lines have numeric/dash tokens at the end
+            # Scan from the right for numeric tokens
             numeric_end = []
             for t in reversed(tokens):
-                if num_token.match(t.replace(',', '')):
+                if num_token_re.match(t.replace(',', '')):
                     numeric_end.insert(0, t)
                 else:
                     break
 
-            if len(numeric_end) < 4:
-                continue  # Not enough numeric columns
+            if len(numeric_end) < 3:
+                continue
 
-            # Everything before the numeric tokens is the product description
             text_part_count = len(tokens) - len(numeric_end)
             text_tokens = tokens[:text_part_count]
-
             if not text_tokens:
                 continue
 
-            # Try to split text into product name and packing
-            # Packing patterns: 1*14, 1*30, 1*10, etc.
+            # Split text into product name and packing
             product_name = ""
             packing = ""
             packing_unit = ""
@@ -434,12 +573,10 @@ def _parse_text_lines(pages: list[dict], mapping) -> tuple[list[dict], int]:
                 if re.match(r'^\d+\*\d+', t):
                     product_name = " ".join(text_tokens[:i]).strip()
                     packing = t
-                    # Unit might follow (PCS, Pcs, TAB, etc.)
                     if i + 1 < len(text_tokens):
                         packing_unit = " ".join(text_tokens[i+1:])
                     break
             else:
-                # No packing pattern found — entire text is product name
                 product_name = " ".join(text_tokens).strip()
 
             if not product_name:
@@ -447,8 +584,6 @@ def _parse_text_lines(pages: list[dict], mapping) -> tuple[list[dict], int]:
 
             pack_str = f"{packing} {packing_unit}".strip() if packing else ""
 
-            # Map numeric values based on count
-            # Stock & Sales format: OPEN_QTY OPEN_VAL RECV_QTY RECV_VAL ISSUE_QTY ISSUE_VAL CLOSE_QTY CLOSE_VAL [DUMP_QTY MAY N_EXP]
             vals = []
             for v in numeric_end:
                 v_clean = v.replace(',', '')
@@ -465,24 +600,51 @@ def _parse_text_lines(pages: list[dict], mapping) -> tuple[list[dict], int]:
                 "packing": pack_str,
             }
 
-            if len(vals) >= 8:
-                canonical["opening_qty"] = int(vals[0]) if vals[0] == int(vals[0]) else vals[0]
-                canonical["opening_value"] = vals[1]
-                canonical["receipt_qty"] = int(vals[2]) if vals[2] == int(vals[2]) else vals[2]
-                canonical["receipt_value"] = vals[3]
-                canonical["issue_qty"] = int(vals[4]) if vals[4] == int(vals[4]) else vals[4]
-                canonical["issue_value"] = vals[5]
-                canonical["closing_qty"] = int(vals[6]) if vals[6] == int(vals[6]) else vals[6]
-                canonical["closing_value"] = vals[7]
-                # Derive price from closing: value / qty
-                if canonical["closing_qty"] and canonical["closing_qty"] > 0:
-                    canonical["price_paise"] = int(canonical["closing_value"] / canonical["closing_qty"] * 100)
-            elif len(vals) >= 4:
-                canonical["opening_qty"] = int(vals[0]) if vals[0] == int(vals[0]) else vals[0]
-                canonical["closing_qty"] = int(vals[1]) if vals[1] == int(vals[1]) else vals[1]
-                canonical["price_paise"] = int(vals[2] * 100) if vals[2] else None
+            # Try to identify batch_no and expiry from the text tokens
+            # before the packing (common: "PRODUCT  1*10  BATCH123  01/25  ...")
+            # Also scan after packing for non-numeric tokens that look like
+            # batch numbers or dates
+            batch_no = None
+            expiry = None
 
-            # Apply confidence and sanity checks
+            # Look in the remaining text tokens (between packing and numeric)
+            remaining_text = text_tokens[text_tokens.index(packing) + 1:] if packing in text_tokens else []
+            for rt in remaining_text:
+                # Date-like: MM/YY, MM-YY, MM/YYYY
+                if re.match(r'^\d{1,2}[/\-]\d{2,4}$', rt) and expiry is None:
+                    expiry = rt
+                # Alphanumeric batch: letters+digits mix
+                elif re.match(r'^[A-Za-z]\w{2,}$|^\w*\d\w*[A-Za-z]\w*$', rt) and batch_no is None:
+                    batch_no = rt
+
+            if batch_no:
+                canonical["batch_no"] = batch_no
+            if expiry:
+                canonical["expiry"] = expiry
+
+            if len(vals) >= 8:
+                canonical["opening_qty"] = int(vals[0]) if vals[0] == int(vals[0]) else int(vals[0])
+                canonical["receipt_qty"] = int(vals[2]) if vals[2] == int(vals[2]) else int(vals[2])
+                canonical["issue_qty"] = int(vals[4]) if vals[4] == int(vals[4]) else int(vals[4])
+                canonical["closing_qty"] = int(vals[6]) if vals[6] == int(vals[6]) else int(vals[6])
+                # Derive price from closing: value / qty
+                closing_value = vals[7]
+                if canonical["closing_qty"] and canonical["closing_qty"] > 0:
+                    canonical["price_paise"] = int(round(closing_value / canonical["closing_qty"] * 100))
+            elif len(vals) >= 6:
+                canonical["opening_qty"] = int(vals[0])
+                canonical["receipt_qty"] = int(vals[1])
+                canonical["issue_qty"] = int(vals[2])
+                canonical["closing_qty"] = int(vals[3])
+                canonical["price_paise"] = int(round(vals[4] * 100)) if vals[4] else None
+            elif len(vals) >= 4:
+                canonical["opening_qty"] = int(vals[0])
+                canonical["closing_qty"] = int(vals[1])
+                canonical["price_paise"] = int(round(vals[2] * 100)) if vals[2] else None
+            elif len(vals) >= 3:
+                canonical["closing_qty"] = int(vals[0])
+                canonical["price_paise"] = int(round(vals[1] * 100)) if vals[1] else None
+
             row_confidence = score_row(canonical)
             row_warnings = check_row(canonical)
 

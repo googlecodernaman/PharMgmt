@@ -26,8 +26,12 @@ async function renderBills(container) {
     let page = 0;
     const perPage = 20;
 
+    // Expose page changer globally so inline pagination buttons can reach it
+    window._billsChangePage = (n) => { page = n; renderTable(); };
+
     async function loadBills() {
         try {
+            // Fetch up to 500 docs; server paginates beyond that
             const data = await API.getDocuments(0, 200);
             allDocs = data.items || [];
             renderTable();
@@ -43,41 +47,52 @@ async function renderBills(container) {
 
         let filtered = allDocs.filter(d => {
             if (search && !d.file_name.toLowerCase().includes(search) && !(d.title || '').toLowerCase().includes(search)) return false;
+            if (filter === 'review' && !d.needs_review) return false;
+            if (filter === 'high' && (d.avg_confidence || 0) < 0.75) return false;
             return true;
         });
 
         if (sort === 'newest') filtered.sort((a, b) => new Date(b.ingest_ts) - new Date(a.ingest_ts));
         if (sort === 'oldest') filtered.sort((a, b) => new Date(a.ingest_ts) - new Date(b.ingest_ts));
+        if (sort === 'conf-high') filtered.sort((a, b) => (b.avg_confidence || 0) - (a.avg_confidence || 0));
+        if (sort === 'conf-low') filtered.sort((a, b) => (a.avg_confidence || 0) - (b.avg_confidence || 0));
 
-        const paged = filtered.slice(page * perPage, (page + 1) * perPage);
         const totalPages = Math.ceil(filtered.length / perPage);
+        // Keep page in valid range after filter change
+        if (page >= totalPages) page = Math.max(0, totalPages - 1);
+        const paged = filtered.slice(page * perPage, (page + 1) * perPage);
 
         if (paged.length === 0) {
-            document.getElementById('bills-table').innerHTML = `<div class="empty-state"><div class="empty-icon">📁</div><h3>No bills found</h3><p>${search ? 'Try a different search term' : 'Upload your first PDF bill'}</p>${!search ? '<a href="#/upload" class="btn btn-primary">Upload PDF</a>' : ''}</div>`;
+            document.getElementById('bills-table').innerHTML = `<div class="empty-state"><div class="empty-icon">📁</div><h3>No bills found</h3><p>${search || filter !== 'all' ? 'Try a different search term or filter' : 'Upload your first PDF bill'}</p>${filter === 'all' && !search ? '<a href="#/upload" class="btn btn-primary">Upload PDF</a>' : ''}</div>`;
             document.getElementById('bills-pagination').innerHTML = '';
             return;
         }
 
         document.getElementById('bills-table').innerHTML = `
       <div class="table-container"><table class="data-table"><thead><tr>
-        <th>File Name</th><th>Title</th><th>Date</th><th>Items</th><th>Confidence</th><th></th>
+        <th>File Name</th><th>Title</th><th>Type</th><th>Date</th><th>Items</th><th>Confidence</th><th></th>
       </tr></thead><tbody>${paged.map(d => `
         <tr class="clickable" onclick="location.hash='#/bills/${d.id}'">
           <td><strong>${d.file_name}</strong></td>
           <td style="color:var(--text-secondary)">${d.title || '—'}</td>
+          <td>${billTypeBadge(d.bill_type)}</td>
           <td>${formatDate(d.ingest_ts)}</td>
           <td>${d.line_item_count || 0}</td>
-          <td>${confidenceBar(0.85)}</td>
+          <td>${confidenceBar(d.avg_confidence || 0)}${d.needs_review ? ' <span class="badge badge-warning" style="font-size:0.7rem">Review</span>' : ''}</td>
           <td><a href="#/bills/${d.id}" class="btn btn-ghost btn-sm">View →</a></td>
         </tr>`).join('')}</tbody></table></div>`;
 
         document.getElementById('bills-pagination').innerHTML = totalPages > 1 ? `
-      <button class="btn btn-secondary btn-sm" ${page === 0 ? 'disabled' : ''} onclick="this.billsPage(${page - 1})">← Prev</button>
-      <span style="color:var(--text-secondary);font-size:0.85rem">Page ${page + 1} of ${totalPages}</span>
-      <button class="btn btn-secondary btn-sm" ${page >= totalPages - 1 ? 'disabled' : ''} onclick="this.billsPage(${page + 1})">Next →</button>` : '';
+      <button class="btn btn-secondary btn-sm" ${page === 0 ? 'disabled' : ''} onclick="window._billsChangePage(${page - 1})">← Prev</button>
+      <span style="color:var(--text-secondary);font-size:0.85rem">Page ${page + 1} of ${totalPages} (${filtered.length} bills)</span>
+      <button class="btn btn-secondary btn-sm" ${page >= totalPages - 1 ? 'disabled' : ''} onclick="window._billsChangePage(${page + 1})">Next →</button>` : '';
     }
 
-    document.getElementById('bills-search').addEventListener('input', () => { page = 0; renderTable(); });
+    let searchTimer;
+    document.getElementById('bills-search').addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { page = 0; renderTable(); }, 300);
+    });
     document.getElementById('bills-filter').addEventListener('change', () => { page = 0; renderTable(); });
     document.getElementById('bills-sort').addEventListener('change', renderTable);
 

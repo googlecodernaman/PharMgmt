@@ -41,8 +41,10 @@ async function renderUpload(container) {
 
         document.getElementById('upload-filename').textContent = file.name;
         document.getElementById('upload-status').textContent = 'Uploading...';
+        document.getElementById('upload-status').style.color = '';
         progress.classList.remove('hidden');
         resultDiv.classList.add('hidden');
+        progressFill.style.background = '';
         progressFill.style.width = '30%';
 
         try {
@@ -75,6 +77,16 @@ async function renderUpload(container) {
             document.getElementById('upload-status').textContent = 'Failed';
             document.getElementById('upload-status').style.color = 'var(--danger)';
             Toast.show(`Upload failed: ${e.message}`, 'error');
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = `
+        <p style="color:var(--danger);margin-bottom:var(--sp-4)">${e.message}</p>
+        <button class="btn btn-secondary" onclick="
+            document.getElementById('upload-progress').classList.add('hidden');
+            document.getElementById('parse-result').classList.add('hidden');
+            document.getElementById('progress-fill').style.background='';
+            document.getElementById('progress-fill').style.width='0%';">
+            Try Again
+        </button>`;
         }
     }
 }

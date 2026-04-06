@@ -20,6 +20,7 @@ from pharmgmt.api.schemas import (
     ParseResultMeta,
     ParseResultResponse,
     ParseResultRow,
+    PaymentCreateRequest,
 )
 from pharmgmt.config import get_settings
 from pharmgmt.db import check_schema_version
@@ -61,9 +62,29 @@ def list_documents(
         .all()
     )
 
+    if not docs:
+        return DocumentListResponse(items=[], total=total)
+
+    doc_ids = [d.id for d in docs]
+
+    # Bulk fetch ParsingRun records — single query instead of N queries
+    parsing_runs = {
+        pr.document_id: pr
+        for pr in db.query(ParsingRun).filter(ParsingRun.document_id.in_(doc_ids)).all()
+    }
+
+    # Bulk fetch line item counts — single query instead of N queries
+    li_counts = {
+        doc_id: count
+        for doc_id, count in db.query(LineItem.document_id, func.count(LineItem.id))
+        .filter(LineItem.document_id.in_(doc_ids))
+        .group_by(LineItem.document_id)
+        .all()
+    }
+
     items = []
     for doc in docs:
-        li_count = db.query(LineItem).filter_by(document_id=doc.id).count()
+        pr = parsing_runs.get(doc.id)
         items.append(
             DocumentResponse(
                 id=doc.id,
@@ -73,7 +94,10 @@ def list_documents(
                 report_from=doc.report_from,
                 report_to=doc.report_to,
                 ingest_ts=doc.ingest_ts,
-                line_item_count=li_count,
+                line_item_count=li_counts.get(doc.id, 0),
+                avg_confidence=pr.avg_confidence if pr else 0.0,
+                needs_review=bool(pr.needs_review) if pr else False,
+                bill_type=pr.bill_type if pr else None,
             )
         )
 
@@ -91,18 +115,28 @@ def get_document(doc_id: str, db: Session = Depends(get_db)):
     li_list = [
         {
             "id": li.id,
+            "page": li.page,
+            "row_index": li.row_index,
             "product_name_raw": li.product_name_raw,
             "packing": li.packing,
             "batch_no": li.batch_no,
             "expiry": li.expiry,
             "opening_qty": li.opening_qty,
+            "receipt_qty": li.receipt_qty,
+            "total_qty": li.total_qty,
+            "issue_qty": li.issue_qty,
             "closing_qty": li.closing_qty,
+            "near_expiry_qty": li.near_expiry_qty,
+            "breakage_qty": li.breakage_qty,
+            "reorder_qty": li.reorder_qty,
             "price_paise": li.price_paise,
             "parser_confidence": li.parser_confidence,
+            "raw_row_text": li.raw_row_text,
         }
         for li in line_items
     ]
 
+    pr = db.query(ParsingRun).filter_by(document_id=doc_id).first()
     return DocumentDetailResponse(
         id=doc.id,
         file_name=doc.file_name,
@@ -115,6 +149,9 @@ def get_document(doc_id: str, db: Session = Depends(get_db)):
         parser_version=doc.parser_version,
         line_item_count=len(li_list),
         line_items=li_list,
+        avg_confidence=pr.avg_confidence if pr else 0.0,
+        needs_review=bool(pr.needs_review) if pr else False,
+        bill_type=pr.bill_type if pr else None,
     )
 
 
@@ -175,6 +212,9 @@ async def upload_pdf(
                 rows_flagged=meta.get("rows_flagged", 0),
                 avg_confidence=meta.get("avg_confidence", 0.0),
                 error_flags=meta.get("error_flags", []),
+                bill_type=meta.get("bill_type"),
+                needs_review=meta.get("needs_review", False),
+                ml_assisted=meta.get("ml_assisted", False),
             ),
         )
 
@@ -205,7 +245,7 @@ def get_stats(db: Session = Depends(get_db)):
             "file_name": doc.file_name,
             "title": doc.title,
             "ingest_ts": doc.ingest_ts,
-            "bill_type": None,
+            "bill_type": pr.bill_type if pr else None,
             "avg_confidence": pr.avg_confidence if pr else 0,
         })
 
@@ -226,6 +266,15 @@ def list_products(
     db: Session = Depends(get_db),
 ):
     """Aggregated product view across all bills."""
+    base_filter = db.query(LineItem.product_name_raw, LineItem.packing).filter(
+        LineItem.product_name_raw.isnot(None)
+    )
+    if search:
+        base_filter = base_filter.filter(LineItem.product_name_raw.ilike(f"%{search}%"))
+
+    # COUNT(*) over the grouped subquery gives accurate total for pagination
+    total = base_filter.group_by(LineItem.product_name_raw, LineItem.packing).count()
+
     query = db.query(
         LineItem.product_name_raw,
         LineItem.packing,
@@ -259,7 +308,7 @@ def list_products(
         for p in products
     ]
 
-    return {"items": items, "total": len(items)}
+    return {"items": items, "total": total}
 
 
 @router.get("/api/staging")
@@ -282,6 +331,29 @@ def list_staging(db: Session = Depends(get_db)):
     return {"items": items}
 
 
+@router.get("/api/staging/{doc_id}")
+def get_staging_detail(doc_id: str, db: Session = Depends(get_db)):
+    """Get staged rows for a document (for preview before accept/reject)."""
+    staged = db.query(StagedRow).filter_by(document_id=doc_id, status="pending").all()
+    if not staged:
+        raise HTTPException(status_code=404, detail="No staged rows found")
+
+    rows = []
+    for row in staged:
+        canonical = json.loads(row.canonical_data) if row.canonical_data else {}
+        raw = json.loads(row.raw_data) if row.raw_data else {}
+        rows.append({
+            "page": row.page,
+            "row_index": row.row_index,
+            "fields": canonical,
+            "raw_text": raw.get("raw_text", ""),
+            "confidence": raw.get("confidence", 0.0),
+            "warnings": raw.get("warnings", []),
+        })
+
+    return {"rows": rows}
+
+
 @router.post("/api/staging/{doc_id}/accept")
 def accept_staging(doc_id: str, db: Session = Depends(get_db)):
     """Accept all staged rows for a document."""
@@ -293,6 +365,7 @@ def accept_staging(doc_id: str, db: Session = Depends(get_db)):
     for row in staged:
         row.status = "accepted"
         canonical = json.loads(row.canonical_data) if row.canonical_data else {}
+        raw = json.loads(row.raw_data) if row.raw_data else {}
         li = LineItem(
             id=uuid.uuid4().hex,
             document_id=doc_id,
@@ -303,8 +376,16 @@ def accept_staging(doc_id: str, db: Session = Depends(get_db)):
             batch_no=canonical.get("batch_no"),
             expiry=canonical.get("expiry"),
             opening_qty=canonical.get("opening_qty"),
+            receipt_qty=canonical.get("receipt_qty"),
+            total_qty=canonical.get("total_qty"),
+            issue_qty=canonical.get("issue_qty"),
             closing_qty=canonical.get("closing_qty"),
+            near_expiry_qty=canonical.get("near_expiry_qty"),
+            breakage_qty=canonical.get("breakage_qty"),
+            reorder_qty=canonical.get("reorder_qty"),
             price_paise=canonical.get("price_paise"),
+            parser_confidence=raw.get("confidence"),
+            raw_row_text=raw.get("raw_text"),
         )
         db.add(li)
 
@@ -367,14 +448,14 @@ def get_price_changes_endpoint(db: Session = Depends(get_db)):
 def list_payments(doc_id: str, db: Session = Depends(get_db)):
     """List payments for a document."""
     from pharmgmt.models import Payment
-    payments = db.query(Payment).filter_by(document_id=doc_id).order_by(Payment.payment_date).all()
+    payments = db.query(Payment).filter_by(document_id=doc_id).order_by(Payment.paid_date).all()
     return {
         "items": [
             {
                 "id": p.id,
                 "amount_paise": p.amount_paise,
-                "payment_date": p.payment_date,
-                "method": p.method,
+                "paid_amount_paise": p.paid_amount_paise,
+                "paid_date": p.paid_date,
                 "notes": p.notes,
                 "status": p.status,
             }
@@ -384,13 +465,9 @@ def list_payments(doc_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/api/documents/{doc_id}/payments")
-def create_payment(doc_id: str, db: Session = Depends(get_db)):
+def create_payment(doc_id: str, body: PaymentCreateRequest, db: Session = Depends(get_db)):
     """Record a payment for a document."""
-    import uuid
     from pharmgmt.models import Payment
-    from fastapi import Request
-
-    # For simplicity, accept JSON body directly
     doc = db.query(Document).filter_by(id=doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -398,7 +475,11 @@ def create_payment(doc_id: str, db: Session = Depends(get_db)):
     payment = Payment(
         id=uuid.uuid4().hex,
         document_id=doc_id,
-        status="paid",
+        status=body.status,
+        amount_paise=body.amount_paise,
+        paid_amount_paise=body.amount_paise if body.status == "paid" else 0,
+        paid_date=body.paid_date,
+        notes=body.notes,
     )
     db.add(payment)
     db.flush()
@@ -410,11 +491,14 @@ def payment_summary(db: Session = Depends(get_db)):
     """Overall payment stats."""
     from pharmgmt.models import Payment
     total = db.query(Payment).count()
+    paid = db.query(Payment).filter(Payment.status == "paid").count()
+    unpaid = db.query(Payment).filter(Payment.status == "unpaid").count()
+    partial = db.query(Payment).filter(Payment.status == "partial").count()
     return {
         "total_payments": total,
-        "total_paid": total,
-        "total_unpaid": 0,
-        "total_partial": 0,
+        "total_paid": paid,
+        "total_unpaid": unpaid,
+        "total_partial": partial,
     }
 
 

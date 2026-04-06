@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pharmgmt import __version__
 from pharmgmt.api.routes import router
 from pharmgmt.config import get_settings
-from pharmgmt.db import init_db
+from pharmgmt.db import init_db, migrate_db
 from pharmgmt.logging_config import setup_logging
 
 app = FastAPI(
@@ -45,7 +45,8 @@ def root_redirect():
 
 @app.on_event("startup")
 def startup_event():
-    """Initialize database and logging on startup."""
+    """Initialize database, run migrations, and configure logging on startup."""
     settings = get_settings()
     setup_logging(settings.LOG_DIR, settings.LOG_LEVEL)
     init_db(settings.DATABASE_URL)
+    migrate_db(settings.DATABASE_URL)

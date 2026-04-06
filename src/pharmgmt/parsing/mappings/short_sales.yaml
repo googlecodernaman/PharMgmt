@@ -26,6 +26,10 @@ header_aliases:
     - "op. bal"
     - "op.bal"
     - "open"
+    - "opstk"
+    - "op stk"
+    - "opening stock"
+    - "opbal"
   receipt_qty:
     - "pur"
     - "purchase"
@@ -48,6 +52,11 @@ header_aliases:
     - "cl. bal"
     - "cl.bal"
     - "balance"
+    - "curstk"
+    - "cur stk"
+    - "current stock"
+    - "closing stock"
+    - "clbal"
   price_paise:
     - "cp"
     - "cost price"

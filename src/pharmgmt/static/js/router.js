@@ -3,6 +3,7 @@
 const Router = {
     routes: [],
     currentRoute: null,
+    _abortController: null,
 
     add(path, handler) {
         // path can be exact like '/dashboard' or parameterized like '/bills/:id'
@@ -31,6 +32,11 @@ const Router = {
     },
 
     async navigate(hash) {
+        // Cancel in-flight requests from the previous page
+        if (this._abortController) this._abortController.abort();
+        this._abortController = new AbortController();
+        API._navAbort = this._abortController;
+
         const result = this.match(hash);
         const container = document.getElementById('page-content');
 

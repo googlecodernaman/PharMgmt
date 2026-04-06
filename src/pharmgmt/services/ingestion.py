@@ -99,7 +99,7 @@ def ingest_pdf(session: Session, file_path: str, file_name: str) -> dict:
 
     # 8. Update document metadata from parse result
     doc_meta = parse_result.get("document", {})
-    if doc_meta.get("supplier_name"):
+    if doc_meta.get("report_title"):
         doc.title = doc_meta.get("report_title")
     if doc_meta.get("report_date_from"):
         doc.report_from = doc_meta["report_date_from"]
@@ -109,14 +109,18 @@ def ingest_pdf(session: Session, file_path: str, file_name: str) -> dict:
     meta = parse_result.get("meta", {})
     doc.parser_version = meta.get("parser_version", "0.2.0")
 
-    # 9. Create StagedRows for all parsed rows
+    # 9. Create StagedRows for all parsed rows (include confidence + warnings for reviewer)
     for row in parse_result.get("rows", []):
         staged = StagedRow(
             id=uuid.uuid4().hex,
             document_id=doc_id,
             page=row.get("page"),
             row_index=row.get("row_index"),
-            raw_data=json.dumps({"raw_text": row.get("raw_text", "")}),
+            raw_data=json.dumps({
+                "raw_text": row.get("raw_text", ""),
+                "confidence": row.get("confidence", 0.0),
+                "warnings": row.get("warnings", []),
+            }),
             canonical_data=json.dumps(row.get("fields", {})),
             status="pending",
         )
@@ -141,6 +145,7 @@ def ingest_pdf(session: Session, file_path: str, file_name: str) -> dict:
                 total_qty=fields.get("total_qty"),
                 issue_qty=fields.get("issue_qty"),
                 closing_qty=fields.get("closing_qty"),
+                near_expiry_qty=fields.get("near_expiry_qty"),
                 price_paise=fields.get("price_paise"),
                 parser_confidence=row.get("confidence"),
                 raw_row_text=row.get("raw_text"),
@@ -158,6 +163,7 @@ def ingest_pdf(session: Session, file_path: str, file_name: str) -> dict:
         error_flags=json.dumps(meta.get("error_flags", [])),
         avg_confidence=avg_confidence,
         needs_review=1 if meta.get("needs_review", True) else 0,
+        bill_type=meta.get("bill_type"),
     )
     session.add(parsing_run)
 

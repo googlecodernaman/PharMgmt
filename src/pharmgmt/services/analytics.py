@@ -20,7 +20,7 @@ def get_price_history(session, product_name: str) -> list[dict]:
     items = (
         session.query(LineItem, Document)
         .join(Document, LineItem.document_id == Document.id)
-        .filter(LineItem.product_name_raw == product_name)
+        .filter(LineItem.product_name_raw.ilike(f"%{product_name}%"))
         .filter(LineItem.price_paise.isnot(None))
         .order_by(Document.ingest_ts)
         .all()

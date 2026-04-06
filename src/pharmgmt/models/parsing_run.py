@@ -18,6 +18,7 @@ class ParsingRun(Base):
     duration_ms = Column(Integer, nullable=True)
     rows_parsed = Column(Integer, nullable=True)
     rows_flagged = Column(Integer, nullable=True)
+    bill_type = Column(String, nullable=True)  # detected: batch_stock | sales_stock | short_sales | unknown
     error_flags = Column(Text, nullable=True)  # JSON list
     avg_confidence = Column(Float, nullable=True)
     needs_review = Column(Integer, default=0)  # SQLite boolean

@@ -19,6 +19,9 @@ class DocumentResponse(BaseModel):
     report_to: str | None = None
     ingest_ts: datetime
     line_item_count: int = 0
+    avg_confidence: float = 0.0
+    needs_review: bool = False
+    bill_type: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -51,9 +54,19 @@ class ParseResultMeta(BaseModel):
     rows_flagged: int
     avg_confidence: float
     error_flags: list[str] = []
+    bill_type: str | None = None
+    needs_review: bool = False
+    ml_assisted: bool = False
 
 
 class ParseResultResponse(BaseModel):
     document: dict
     rows: list[ParseResultRow]
     meta: ParseResultMeta
+
+
+class PaymentCreateRequest(BaseModel):
+    amount_paise: int | None = None
+    status: str = "paid"  # paid | unpaid | partial
+    paid_date: str | None = None  # ISO date string
+    notes: str | None = None

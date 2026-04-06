@@ -29,8 +29,9 @@ def score_row(row_fields: dict, expected: list[str] | None = None) -> float:
         Confidence score 0.0–1.0
     """
     if expected is None:
-        # Use only the fields that are actually mapped in this row
-        expected = [f for f in EXPECTED_FIELDS if f in row_fields]
+        # Always measure against the full set of expected fields so that
+        # sparse rows (few fields extracted) are scored proportionally low.
+        expected = EXPECTED_FIELDS
 
     if not expected:
         return 0.0
@@ -40,9 +41,9 @@ def score_row(row_fields: dict, expected: list[str] | None = None) -> float:
         if row_fields.get(f) is not None
     )
 
-    base_score = non_null / len(expected) if expected else 0.0
+    base_score = non_null / len(expected)
 
-    # Bonus for having product name
+    # Bonus for having product name — it's the most critical field
     if row_fields.get("product_name_raw"):
         base_score = min(1.0, base_score + 0.1)
 

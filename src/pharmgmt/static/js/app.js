@@ -54,6 +54,7 @@ function downloadCSV(filename, headers, rows) {
     a.href = URL.createObjectURL(blob);
     a.download = filename;
     a.click();
+    URL.revokeObjectURL(a.href);
 }
 
 // Sidebar toggle

@@ -99,9 +99,13 @@ class MLPredictor:
                     providers=["CPUExecutionProvider"],
                 )
 
-            # Load vocab for classifier
+            # Load vocab for classifier — try vocab.json first (no PyTorch needed)
+            vocab_json = self.models_dir / "vocab.json"
             classifier_pt = self.models_dir / "bill_classifier.pt"
-            if _HAS_TORCH and classifier_pt.exists():
+            if vocab_json.exists():
+                with open(vocab_json) as f:
+                    self._vocab = json.load(f)
+            elif _HAS_TORCH and classifier_pt.exists():
                 data = torch.load(classifier_pt, map_location="cpu", weights_only=False)
                 self._vocab = data.get("vocab", {})
 
@@ -328,7 +332,7 @@ def _format_field_value(field_name: str, raw_value: str):
 
     if field_name == "expiry":
         date_val, _ = normalize_date(raw_value)
-        return raw_value if date_val is None else raw_value
+        return date_val if date_val is not None else raw_value
     elif field_name == "price_paise":
         return normalize_money(raw_value)
     elif field_name.endswith("_qty"):

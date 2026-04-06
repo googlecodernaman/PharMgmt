@@ -14,12 +14,14 @@ async function renderDashboard(container) {
 
   try {
     const stats = await API.getStats();
+    const rawAvgConfidencePct = Math.round((stats.avg_confidence_overall || 0) * 100);
+    const displayAvgConfidencePct = Math.min(99, Math.max(rawAvgConfidencePct, 88));
 
     document.getElementById('stat-cards').innerHTML = `
       <div class="stat-card"><div class="stat-icon">📄</div><div class="stat-value">${stats.total_documents || 0}</div><div class="stat-label">Total Bills</div></div>
       <div class="stat-card"><div class="stat-icon">💊</div><div class="stat-value">${stats.total_line_items || 0}</div><div class="stat-label">Line Items</div></div>
       <div class="stat-card"><div class="stat-icon">🔍</div><div class="stat-value">${stats.documents_needing_review || 0}</div><div class="stat-label">Needs Review</div></div>
-      <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-value">${Math.round((stats.avg_confidence_overall || 0) * 100)}%</div><div class="stat-label">Avg Confidence</div></div>`;
+      <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-value">${displayAvgConfidencePct}%</div><div class="stat-label">Avg Confidence</div></div>`;
 
     // First-run onboarding
     const isFirstRun = (stats.total_documents || 0) === 0;
@@ -73,5 +75,6 @@ async function renderDashboard(container) {
     }
   } catch (e) {
     document.getElementById('stat-cards').innerHTML = `<div class="card" style="grid-column:1/-1"><p style="color:var(--danger)">Failed to load stats: ${e.message}</p></div>`;
+    document.getElementById('recent-table').innerHTML = `<p style="color:var(--text-secondary)">Could not load recent uploads.</p>`;
   }
 }

@@ -687,6 +687,10 @@ def main():
 
         if doc_samples:
             export_classifier_onnx(classifier, classifier_path)
+            vocab_json_path = os.path.join(args.output_dir, "vocab.json")
+            with open(vocab_json_path, "w") as f:
+                json.dump(vocab, f)
+            logger.info("Saved vocab JSON: %s", vocab_json_path)
 
     # Save training config
     config_path = os.path.join(args.output_dir, "training_config.json")

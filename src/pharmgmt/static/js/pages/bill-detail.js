@@ -1,4 +1,30 @@
-/* Bill Detail Page */
+/* Bill Detail Page — dynamic columns, auto-hides empty ones */
+
+// All possible line-item columns in display order
+const _ALL_COLUMNS = [
+    { key: 'product_name_raw', label: 'Product',   fmt: v => `<strong>${v || '—'}</strong>` },
+    { key: 'packing',          label: 'Pack',       fmt: v => v || '—' },
+    { key: 'batch_no',         label: 'Batch',      fmt: v => v || '—' },
+    { key: 'expiry',           label: 'Expiry',     fmt: v => v || '—' },
+    { key: 'opening_qty',      label: 'Open',       fmt: v => v ?? '—' },
+    { key: 'receipt_qty',      label: 'Receipt',    fmt: v => v ?? '—' },
+    { key: 'total_qty',        label: 'Total',      fmt: v => v ?? '—' },
+    { key: 'issue_qty',        label: 'Issue',      fmt: v => v ?? '—' },
+    { key: 'closing_qty',      label: 'Close',      fmt: v => v ?? '—' },
+    { key: 'near_expiry_qty',  label: 'Near Exp',   fmt: v => v ?? '—' },
+    { key: 'price_paise',      label: 'MRP',        fmt: v => v != null ? formatMoney(v) : '—' },
+    { key: 'parser_confidence', label: 'Confidence', fmt: v => confidenceBar(v || 0) },
+];
+
+/** Return only columns that have data in at least one item. */
+function _visibleColumns(items) {
+    return _ALL_COLUMNS.filter(col => {
+        // Always show product name and confidence
+        if (col.key === 'product_name_raw' || col.key === 'parser_confidence') return true;
+        return items.some(li => li[col.key] != null && li[col.key] !== '' && li[col.key] !== 0);
+    });
+}
+
 async function renderBillDetail(container, params) {
     const docId = params.id;
     container.innerHTML = `<div class="skeleton skeleton-card" style="height:400px"></div>`;
@@ -7,24 +33,26 @@ async function renderBillDetail(container, params) {
         const doc = await API.getDocument(docId);
 
         const items = doc.line_items || [];
+        const cols = _visibleColumns(items);
+
         container.innerHTML = `
       <div class="flex justify-between items-center mb-6">
         <div>
-          <a href="#/bills" class="btn btn-ghost btn-sm mb-2">← Back to Bills</a>
+          <a href="#/bills" class="btn btn-ghost btn-sm mb-2">\u2190 Back to Bills</a>
           <h2>${doc.file_name}</h2>
           <div class="flex gap-4 items-center mt-2">
             ${doc.parser_version ? `<span class="badge badge-info">v${doc.parser_version}</span>` : ''}
             <span style="color:var(--text-secondary);font-size:0.85rem">${formatDate(doc.ingest_ts)}</span>
           </div>
         </div>
-        <button class="btn btn-secondary" id="btn-export-csv">📥 Export CSV</button>
+        <button class="btn btn-secondary" id="btn-export-csv">Export CSV</button>
       </div>
 
       <div class="grid-4 mb-6">
-        <div class="stat-card"><div class="stat-icon">📄</div><div class="stat-value">${doc.title || '—'}</div><div class="stat-label">Title</div></div>
-        <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-value">${items.length}</div><div class="stat-label">Line Items</div></div>
-        <div class="stat-card"><div class="stat-icon">${doc.is_scanned ? '📷' : '📝'}</div><div class="stat-value">${doc.is_scanned ? 'Scanned' : 'Text'}</div><div class="stat-label">PDF Type</div></div>
-        <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-value">${doc.report_from || '—'}</div><div class="stat-label">Report Period</div></div>
+        <div class="stat-card"><div class="stat-value">${doc.title || '\u2014'}</div><div class="stat-label">Title</div></div>
+        <div class="stat-card"><div class="stat-value">${items.length}</div><div class="stat-label">Line Items</div></div>
+        <div class="stat-card"><div class="stat-value">${doc.is_scanned ? 'Scanned' : 'Text'}</div><div class="stat-label">PDF Type</div></div>
+        <div class="stat-card"><div class="stat-value">${doc.report_from || '\u2014'}</div><div class="stat-label">Report Period</div></div>
       </div>
 
       <div class="tabs" id="detail-tabs">
@@ -37,26 +65,14 @@ async function renderBillDetail(container, params) {
         <div class="table-container">
           <table class="data-table" id="items-table">
             <thead><tr>
-              <th>#</th><th>Product</th><th>Pack</th><th>Batch</th><th>Expiry</th>
-              <th>Open</th><th>Close</th><th>MRP</th><th>Confidence</th>
+              <th>#</th>${cols.map(c => `<th>${c.label}</th>`).join('')}
             </tr></thead>
-            <tbody>${items.map((li, i) => {
-            const conf = li.parser_confidence || 0;
-            const confLevel = conf >= 0.8 ? 'high' : conf >= 0.5 ? 'medium' : 'low';
-            return `<tr>
+            <tbody>${items.map((li, i) => `<tr>
                 <td style="color:var(--text-muted)">${i + 1}</td>
-                <td><strong>${li.product_name_raw || '—'}</strong></td>
-                <td>${li.packing || '—'}</td>
-                <td>${li.batch_no || '—'}</td>
-                <td>${li.expiry || '—'}</td>
-                <td>${li.opening_qty ?? '—'}</td>
-                <td>${li.closing_qty ?? '—'}</td>
-                <td>${li.price_paise != null ? formatMoney(li.price_paise) : '—'}</td>
-                <td>${confidenceBar(conf)}</td>
-              </tr>`;
-        }).join('')}</tbody>
+                ${cols.map(c => `<td>${c.fmt(li[c.key])}</td>`).join('')}
+              </tr>`).join('')}</tbody>
           </table>
-        </div>` : `<div class="empty-state"><div class="empty-icon">📋</div><h3>No line items</h3><p>This document may need review in the staging area</p></div>`}
+        </div>` : `<div class="empty-state"><h3>No line items</h3><p>This document may need review in the staging area</p></div>`}
       </div>
 
       <div id="tab-raw" class="hidden">
@@ -74,19 +90,20 @@ async function renderBillDetail(container, params) {
             });
         });
 
-        // CSV export
+        // CSV export — uses same visible columns
         document.getElementById('btn-export-csv').addEventListener('click', () => {
-            const headers = ['Product', 'Pack', 'Batch', 'Expiry', 'Opening', 'Closing', 'MRP', 'Confidence'];
-            const rows = items.map(li => [
-                li.product_name_raw, li.packing, li.batch_no, li.expiry,
-                li.opening_qty, li.closing_qty, li.price_paise != null ? (li.price_paise / 100).toFixed(2) : '',
-                li.parser_confidence,
-            ]);
+            const csvCols = cols.filter(c => c.key !== 'parser_confidence');
+            const headers = csvCols.map(c => c.label);
+            const rows = items.map(li => csvCols.map(c => {
+                const v = li[c.key];
+                if (c.key === 'price_paise' && v != null) return (v / 100).toFixed(2);
+                return v ?? '';
+            }));
             downloadCSV(`${doc.file_name.replace('.pdf', '')}_export.csv`, headers, rows);
             Toast.show('CSV exported', 'success');
         });
 
     } catch (e) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><h3>Document not found</h3><p>${e.message}</p><a href="#/bills" class="btn btn-primary">Back to Bills</a></div>`;
+        container.innerHTML = `<div class="empty-state"><h3>Document not found</h3><p>${e.message}</p><a href="#/bills" class="btn btn-primary">Back to Bills</a></div>`;
     }
 }
