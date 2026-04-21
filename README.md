@@ -1,4 +1,4 @@
-# PharMgmt — Pharmacy Bill Management System
+# PharMgmt — Pharmacy supply chain Bill Management System
 
 > Offline-first pharmacy bill management for Indian pharmacies. Upload supplier PDFs, auto-parse product data, track expiry, compare prices, generate reports.
 
